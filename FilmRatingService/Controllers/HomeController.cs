@@ -17,7 +17,18 @@ namespace FilmRatingService.Controllers
 
         public IActionResult Index()
         {
-            return View();
+            var featured = new FeaturedMovieViewModel
+            {
+                Title = "Diego Luna on Cassian's Growth in \"Andor\" Season 2",
+                Description = "Watch Our Star Wars Celebration Interview",
+                CoverImageUrl = "/images/andor-promo.png", 
+                VideoUrl = "#",
+                Rating = 9.2,
+                Likes = 21,
+                Hearts = 14
+            };
+
+            return View(featured);
         }
 
         public IActionResult Privacy()
