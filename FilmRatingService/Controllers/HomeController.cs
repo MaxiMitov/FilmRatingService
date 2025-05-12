@@ -82,6 +82,20 @@ namespace FilmRatingService.Controllers
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
+
+        [HttpGet]
+        public async Task<IActionResult> Search(string query)
+        {
+            var response = await GetPopularMovies();
+            var results = response?.Results
+                .Where(m => m.Title != null && m.Title.Contains(query, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            return View("SearchResults", results);
+        }
+
+
+
     }
 
     public class MovieDetails

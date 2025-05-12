@@ -262,9 +262,12 @@
     <div class="header-content">
         <div class="logo">IMDb</div>
         <div class="search-bar">
-            <input type="text" placeholder="Search Movies, TV Shows, etc...">
-            <button type="submit">Search</button>
+            <form asp-controller="Home" asp-action="Search" method="get" style="display: flex; width: 100%;">
+                <input type="text" name="query" placeholder="Search Movies, TV Shows, etc..." style="padding: 10px 15px; border: none; border-radius: 5px 0 0 5px; background-color: #333; color: #fff; flex-grow: 1;">
+                <button type="submit" style="padding: 10px 15px; border: none; border-radius: 0 5px 5px 0; background-color: #f5c518; color: #000; cursor: pointer; font-weight: bold;">Search</button>
+            </form>
         </div>
+
         <div class="user-actions">
             <a href="#">Sign In</a> | <a href="#">Register</a>
         </div>
