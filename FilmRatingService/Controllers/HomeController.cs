@@ -1,5 +1,5 @@
 using FilmRatingService.Interfaces;
-using FilmRatingService.Models;
+using FilmRatingService.Models; // Ensure MovieSearchViewModel is in this namespace
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -21,19 +21,15 @@ namespace FilmRatingService.Controllers
             _movieService = movieService;
         }
 
-        // MODIFIED Index action to accept a page number
-        public async Task<IActionResult> Index([FromQuery] int page = 1) // Use [FromQuery] to make it clear it comes from querystring
+        public async Task<IActionResult> Index([FromQuery] int page = 1)
         {
-            if (page < 1) page = 1; // Ensure page is not less than 1
+            if (page < 1) page = 1;
 
-            int featuredMovieId = 157336; // Interstellar - consider making this dynamic or configurable
-
+            int featuredMovieId = 157336;
             MovieDetails featuredMovie = await _movieService.GetMovieDetailsAsync(featuredMovieId);
-
-            // Call the service with the current page number
             MovieListResponse popularMoviesResponse = await _movieService.GetPopularMoviesAsync(page);
 
-            var viewModel = new FeaturedMovieViewModel // Using the updated FeaturedMovieViewModel
+            var viewModel = new FeaturedMovieViewModel // Using FeaturedMovieViewModel
             {
                 Title = featuredMovie?.Title ?? "Featured Movie Title",
                 Description = featuredMovie?.Overview ?? "Featured Movie Description",
@@ -42,9 +38,7 @@ namespace FilmRatingService.Controllers
                 Rating = featuredMovie?.VoteAverage ?? 7.0,
                 Likes = 0,
                 Hearts = 0,
-
                 PopularMovies = popularMoviesResponse?.Results ?? new List<MovieDetails>(),
-                // Populate paging properties
                 PopularMoviesCurrentPage = popularMoviesResponse?.Page ?? page,
                 PopularMoviesTotalPages = popularMoviesResponse?.TotalPages ?? 0
             };
@@ -63,16 +57,32 @@ namespace FilmRatingService.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier }); // Using ErrorViewModel
         }
 
+        // MODIFIED Search action
         [HttpGet]
-        public async Task<IActionResult> Search(string query) // Consider adding paging to search results later
+        public async Task<IActionResult> Search(string query, [FromQuery] int page = 1)
         {
+            if (page < 1) page = 1;
+
+            var searchViewModel = new MovieSearchViewModel { Query = query, CurrentPage = page };
+
             if (string.IsNullOrWhiteSpace(query))
             {
-                return View("SearchResults", new List<MovieDetails>());
+                // Optionally, you could set a message in the ViewModel like "Please enter a search term."
+                // For now, just return the view with empty results and defaults.
+                searchViewModel.Results = new List<MovieDetails>();
+                searchViewModel.TotalPages = 0;
+                searchViewModel.TotalResults = 0;
+                return View("SearchResults", searchViewModel);
             }
-            MovieListResponse response = await _movieService.SearchMoviesAsync(query);
-            var results = response?.Results ?? new List<MovieDetails>();
-            return View("SearchResults", results);
+
+            MovieListResponse response = await _movieService.SearchMoviesAsync(query, page);
+
+            searchViewModel.Results = response?.Results ?? new List<MovieDetails>();
+            searchViewModel.CurrentPage = response?.Page ?? page; // Ensure CurrentPage is set from response
+            searchViewModel.TotalPages = response?.TotalPages ?? 0;
+            searchViewModel.TotalResults = response?.TotalResults ?? 0;
+
+            return View("SearchResults", searchViewModel);
         }
     }
 }

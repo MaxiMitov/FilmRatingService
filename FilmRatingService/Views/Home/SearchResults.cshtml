@@ -1,7 +1,6 @@
-﻿@model IEnumerable<FilmRatingService.Models.MovieDetails>
-
+﻿@model FilmRatingService.Models.MovieSearchViewModel
 @{
-    ViewData["Title"] = "Search Results";
+    ViewData["Title"] = string.IsNullOrEmpty(Model.Query) ? "Search" : $"Search Results for \"{Model.Query}\"";
 }
 
 <div class="imdb-header">
@@ -9,17 +8,21 @@
         <div class="logo">IMDb</div>
         <div class="search-bar">
             <form asp-controller="Home" asp-action="Search" method="get">
-                <input type="text" name="query" placeholder="Search Movies, TV Shows, etc..." />
+                <input type="text" name="query" placeholder="Search Movies, TV Shows, etc..." value="@Model.Query" />
                 <button type="submit">Search</button>
             </form>
         </div>
         <div class="user-actions">
+            @* You might want to update these to use asp-page tag helpers like in your Index.cshtml for consistency *@
+            @* <a asp-area="Identity" asp-page="/Account/Login">Sign In</a> | <a asp-area="Identity" asp-page="/Account/Register">Register</a> *@
             <a href="#">Sign In</a> | <a href="#">Register</a>
         </div>
     </div>
 </div>
 
 <style>
+    /* Your existing styles are here - I'm omitting them for brevity in this code block */
+    /* but they should remain in your file. */
     .imdb-header {
         background-color: #1a1a1a;
         padding: 12px 20px;
@@ -96,10 +99,16 @@
         padding: 0 20px;
     }
 
-    h3 {
+    h3.search-title { /* Added class for specific styling */
         color: #f5c518;
         font-size: 28px;
-        margin-bottom: 20px;
+        margin-bottom: 10px;
+    }
+
+    .search-summary {
+        color: #aaa;
+        margin-bottom: 25px;
+        font-size: 0.9em;
     }
 
     .movie-grid {
@@ -114,6 +123,8 @@
         overflow: hidden;
         box-shadow: 0 2px 6px rgba(0,0,0,0.4);
         transition: transform 0.2s;
+        display: flex; /* Added for flex layout */
+        flex-direction: column; /* Added for flex layout */
     }
 
         .movie-card:hover {
@@ -122,13 +133,16 @@
 
         .movie-card img {
             width: 100%;
-            height: 270px;
+            height: 330px; /* Adjusted height for proportion */
             object-fit: cover;
             display: block;
         }
 
         .movie-card .info {
             padding: 15px;
+            flex-grow: 1; /* Added for flex layout */
+            display: flex; /* Added for flex layout */
+            flex-direction: column; /* Added for flex layout */
         }
 
         .movie-card h4 {
@@ -141,11 +155,16 @@
             text-overflow: ellipsis;
         }
 
-        .movie-card p {
+        .movie-card p { /* For genre/year */
             color: #aaa;
             font-size: 14px;
             margin-bottom: 5px;
         }
+
+        .movie-card .info .card-rating { /* Ensure rating is at the bottom */
+            margin-top: auto;
+        }
+
 
     .card-rating {
         color: #f5c518;
@@ -159,15 +178,54 @@
         color: #ccc;
         font-size: 18px;
     }
+
+    /* Pagination Styles (Copied from Index.cshtml, ensure consistency or move to site.css) */
+    .pagination {
+        margin-top: 30px;
+    }
+
+    .page-item.disabled .page-link {
+        background-color: #333;
+        border-color: #444;
+        color: #6c757d;
+    }
+
+    .page-item .page-link {
+        background-color: #212121;
+        border-color: #444;
+        color: #f5c518;
+    }
+
+        .page-item .page-link:hover {
+            background-color: #333;
+            color: #ffd700;
+        }
+
+    .page-item.active .page-link {
+        background-color: #f5c518;
+        border-color: #f5c518;
+        color: #000;
+    }
 </style>
 
 <div class="container">
-    <h3>Search Results</h3>
+    @if (!string.IsNullOrEmpty(Model.Query))
+    {
+        <h3 class="search-title">Search Results for "@Model.Query"</h3>
+        if (Model.TotalResults > 0)
+        {
+            <p class="search-summary">Page @Model.CurrentPage of @Model.TotalPages (@Model.TotalResults total results found)</p>
+        }
+    }
+    else
+    {
+        <h3 class="search-title">Search</h3>
+    }
 
-    @if (Model != null && Model.Any())
+    @if (Model.Results != null && Model.Results.Any())
     {
         <div class="movie-grid">
-            @foreach (var movie in Model)
+            @foreach (var movie in Model.Results)
             {
                 <div class="movie-card">
                     @if (!string.IsNullOrEmpty(movie.PosterPath))
@@ -176,19 +234,60 @@
                     }
                     else
                     {
-                        <img src="/images/default-thumbnail.png" alt="No Poster Available" />
+                        <img src="/images/default-thumbnail.png" alt="No Poster Available" /> @* Ensure you have this image *@
                     }
                     <div class="info">
                         <h4>@movie.Title</h4>
-                        <p>Genre · Year</p>
-                        <div class="card-rating">⭐ @movie.VoteAverage.ToString("0.#")</div>
+                        <p>Genre · Year</p> @* Consider making this dynamic *@
+                        <div class="card-rating">⭐ @movie.VoteAverage.ToString("0.0")</div>
                     </div>
                 </div>
             }
         </div>
+
+        @if (Model.TotalPages > 1)
+        {
+            <nav aria-label="Search Results Navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    @if (Model.HasPreviousPage)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" asp-controller="Home" asp-action="Search"
+                               asp-route-query="@Model.Query" asp-route-page="@(Model.CurrentPage - 1)">Previous</a>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="page-item disabled">
+                            <span class="page-link">Previous</span>
+                        </li>
+                    }
+
+                    @* Optional: Add page number links here - remember asp-route-query="@Model.Query" *@
+
+                    @if (Model.HasNextPage)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" asp-controller="Home" asp-action="Search"
+                               asp-route-query="@Model.Query" asp-route-page="@(Model.CurrentPage + 1)">Next</a>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="page-item disabled">
+                            <span class="page-link">Next</span>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        }
     }
-    else
+    else if (!string.IsNullOrEmpty(Model.Query)) // Only show "no results for query" if a query was actually made
     {
-        <p class="no-results">No results found.</p>
+        <p class="no-results">No movies found matching your query "@Model.Query".</p>
+    }
+    else // This case is if the page is loaded without a query (e.g., direct navigation to /Home/Search)
+    {
+        <p class="no-results">Please enter a search term in the bar above.</p>
     }
 </div>
