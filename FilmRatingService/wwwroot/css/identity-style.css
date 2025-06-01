@@ -1,0 +1,41 @@
+﻿.auth-container {
+    max-width: 400px;
+    margin: 40px auto;
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+    .auth-container .logo {
+        width: 70px;
+        margin-bottom: 20px;
+    }
+
+    .auth-container h2 {
+        font-weight: bold;
+    }
+
+    .auth-container input {
+        width: 100%;
+        margin: 8px 0;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    .auth-container button {
+        background-color: #f5c518;
+        color: black;
+        padding: 10px;
+        border: none;
+        width: 100%;
+        margin-top: 15px;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+
+.auth-footer {
+    font-size: 0.9em;
+    margin-top: 10px;
+}
