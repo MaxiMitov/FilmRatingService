@@ -1,12 +1,11 @@
-using FilmRatingService.Models;
+using FilmRatingService.Interfaces; // Required for IMovieService
+using FilmRatingService.Models;   // Required for MovieDetails, MovieListResponse, FeaturedMovieViewModel, ErrorViewModel
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
+using System.Collections.Generic; // Required for List<>
 using System.Diagnostics;
-using System.Net.Http;
-using System.Net.Http.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace FilmRatingService.Controllers
@@ -14,63 +13,41 @@ namespace FilmRatingService.Controllers
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;
-        private readonly string _apiKey = "b2115f4c7e35c28847af5b084345ef7d";
-        private readonly HttpClient _httpClient;
+        private readonly IMovieService _movieService; // Use the service interface
 
-        public HomeController(ILogger<HomeController> logger, IHttpClientFactory httpClientFactory)
+        // Constructor updated to inject IMovieService instead of IHttpClientFactory
+        public HomeController(ILogger<HomeController> logger, IMovieService movieService)
         {
             _logger = logger;
-            _httpClient = httpClientFactory.CreateClient();
-            _httpClient.BaseAddress = new Uri("https://api.themoviedb.org/3/");
+            _movieService = movieService;
         }
 
         public async Task<IActionResult> Index()
         {
-            int featuredMovieId = 157336;
-            MovieDetails featuredMovie = await GetMovieDetails(featuredMovieId);
+            int featuredMovieId = 157336; // Interstellar
 
-            MovieListResponse popularMoviesResponse = await GetPopularMovies();
+            // Use the movie service to get data
+            MovieDetails featuredMovie = await _movieService.GetMovieDetailsAsync(featuredMovieId);
+            MovieListResponse popularMoviesResponse = await _movieService.GetPopularMoviesAsync();
 
-            FeaturedMovieViewModel viewModel = new FeaturedMovieViewModel
+            // Ensure your FeaturedMovieViewModel is correctly defined, possibly in the Models folder
+            var viewModel = new FeaturedMovieViewModel
             {
                 Title = featuredMovie?.Title ?? "Featured Movie Title",
                 Description = featuredMovie?.Overview ?? "Featured Movie Description",
                 CoverImageUrl = featuredMovie?.PosterPath != null ? $"https://image.tmdb.org/t/p/w500/{featuredMovie.PosterPath}" : "/images/default-poster.png",
-                VideoUrl = "#",
+                VideoUrl = "#", // Placeholder, you might want to fetch actual video/trailer URLs via the service
                 Rating = featuredMovie?.VoteAverage ?? 7.0,
-                Likes = 0,
-                Hearts = 0,
+                Likes = 0, // Placeholder
+                Hearts = 0, // Placeholder
                 PopularMovies = popularMoviesResponse?.Results ?? new List<MovieDetails>()
             };
 
             return View(viewModel);
         }
 
-        private async Task<MovieDetails> GetMovieDetails(int movieId)
-        {
-            try
-            {
-                return await _httpClient.GetFromJsonAsync<MovieDetails>($"movie/{movieId}?api_key={_apiKey}");
-            }
-            catch (HttpRequestException ex)
-            {
-                _logger.LogError($"Error fetching movie details for ID {movieId}: {ex.Message}");
-                return null;
-            }
-        }
-
-        private async Task<MovieListResponse> GetPopularMovies()
-        {
-            try
-            {
-                return await _httpClient.GetFromJsonAsync<MovieListResponse>($"movie/popular?api_key={_apiKey}");
-            }
-            catch (HttpRequestException ex)
-            {
-                _logger.LogError($"Error fetching popular movies: {ex.Message}");
-                return null;
-            }
-        }
+        // The private GetMovieDetails and GetPopularMovies methods are removed from here.
+        // Their logic is now in MovieService.cs
 
         public IActionResult Privacy()
         {
@@ -80,45 +57,33 @@ namespace FilmRatingService.Controllers
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
+            // Ensure ErrorViewModel is correctly defined, possibly in the Models folder
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
         [HttpGet]
         public async Task<IActionResult> Search(string query)
         {
-            var response = await GetPopularMovies();
-            var results = response?.Results
-                .Where(m => m.Title != null && m.Title.Contains(query, StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                // Return an empty list to the view if the query is empty
+                return View("SearchResults", new List<MovieDetails>());
+            }
+
+            // Use the movie service for searching
+            MovieListResponse response = await _movieService.SearchMoviesAsync(query);
+            var results = response?.Results ?? new List<MovieDetails>();
 
             return View("SearchResults", results);
         }
-
-
-
     }
 
-    public class MovieDetails
-    {
-        [JsonPropertyName("id")]
-        public int Id { get; set; }
-
-        [JsonPropertyName("title")]
-        public string Title { get; set; }
-
-        [JsonPropertyName("overview")]
-        public string Overview { get; set; }
-
-        [JsonPropertyName("poster_path")]
-        public string PosterPath { get; set; }
-
-        [JsonPropertyName("vote_average")]
-        public double VoteAverage { get; set; }
-    }
-
-    public class MovieListResponse
-    {
-        [JsonPropertyName("results")]
-        public List<MovieDetails> Results { get; set; }
-    }
+    // IMPORTANT:
+    // DELETE the class definitions for MovieDetails and MovieListResponse from this file.
+    // They should now be in their own files within the FilmRatingService/Models/ folder,
+    // with the namespace FilmRatingService.Models.
+    //
+    // Example (these should NOT be here anymore):
+    // public class MovieDetails { ... } // <-- DELETE THIS FROM HERE
+    // public class MovieListResponse { ... } // <-- DELETE THIS FROM HERE
 }
