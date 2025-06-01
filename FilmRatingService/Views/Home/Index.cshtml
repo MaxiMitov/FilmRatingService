@@ -4,6 +4,8 @@
 }
 
 <style>
+    /* Your existing styles are here - I'm omitting them for brevity in this code block */
+    /* but they should remain in your file. */
     body {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         background-color: #181818;
@@ -205,7 +207,7 @@
 
         .movie-card img {
             width: 100%;
-            height: 270px;
+            height: 270px; /* Fixed height for consistency */
             object-fit: cover;
             display: block;
         }
@@ -223,7 +225,7 @@
             text-overflow: ellipsis;
         }
 
-        .movie-card p {
+        .movie-card p { /* Assuming this is for genre/year */
             color: #aaa;
             font-size: 14px;
             margin-bottom: 5px;
@@ -256,6 +258,35 @@
             .footer a:hover {
                 text-decoration: underline;
             }
+
+    /* Pagination Styles (Can be customized further to match your dark theme) */
+    .pagination {
+        margin-top: 30px; /* Add some space above pagination */
+    }
+
+    .page-item.disabled .page-link {
+        background-color: #333;
+        border-color: #444;
+        color: #6c757d;
+    }
+
+    .page-item .page-link {
+        background-color: #212121;
+        border-color: #444;
+        color: #f5c518; /* IMDb yellow for links */
+    }
+
+        .page-item .page-link:hover {
+            background-color: #333;
+            color: #ffd700;
+        }
+
+    .page-item.active .page-link { /* You can add active class if you implement page numbers */
+        background-color: #f5c518;
+        border-color: #f5c518;
+        color: #000;
+    }
+
 </style>
 
 <div class="header">
@@ -267,19 +298,18 @@
                 <button type="submit" style="padding: 10px 15px; border: none; border-radius: 0 5px 5px 0; background-color: #f5c518; color: #000; cursor: pointer; font-weight: bold;">Search</button>
             </form>
         </div>
-
         <div class="user-actions">
+            @* This part will be updated later to show Logout/Username when logged in *@
             <a asp-area="Identity" asp-page="/Account/Login" class="text-light">Sign In</a> |
             <a asp-area="Identity" asp-page="/Account/Register" class="text-light">Register</a>
         </div>
-
     </div>
 </div>
 
 <div class="container">
     <div class="featured">
         <div class="featured-img">
-            @if (!string.IsNullOrEmpty(Model.CoverImageUrl))
+            @if (!string.IsNullOrEmpty(Model.CoverImageUrl) && Model.CoverImageUrl != "/images/default-poster.png")
             {
                 <img src="@Model.CoverImageUrl" alt="@Model.Title" />
             }
@@ -291,9 +321,10 @@
         </div>
         <div class="featured-info">
             <h2>@Model.Title</h2>
-            <p class="featured-details">Action, Adventure · 2023</p> <p>@Model.Description</p>
+            <p class="featured-details">Action, Adventure · 2023</p> @* Consider making this dynamic *@
+            <p>@Model.Description</p>
             <div class="rating">
-                <span>⭐ @Model.Rating</span>
+                <span>⭐ @Model.Rating.ToString("0.0")</span> @* Format the rating *@
                 <span class="like">👍 @Model.Likes</span>
                 <span class="heart">💖 @Model.Hearts</span>
             </div>
@@ -302,9 +333,15 @@
     </div>
 
     <div class="more-movies">
-        <h3>Popular Movies</h3>
+        <h3>
+            Popular Movies
+            @if (Model.PopularMoviesTotalPages > 0)
+            {
+                <small class="text-muted">(Page @Model.PopularMoviesCurrentPage of @Model.PopularMoviesTotalPages)</small>
+            }
+        </h3>
         <div class="movie-grid">
-            @if (Model.PopularMovies != null)
+            @if (Model.PopularMovies != null && Model.PopularMovies.Any()) // Added .Any() for robustness
             {
                 @foreach (var movie in Model.PopularMovies)
                 {
@@ -315,21 +352,85 @@
                         }
                         else
                         {
-                            <img src="/images/default-thumbnail.png" alt="No Poster Available" />
+                            <img src="/images/default-thumbnail.png" alt="No Poster Available" /> @* Ensure you have this image or use the other default *@
                         }
                         <div class="info">
                             <h4>@movie.Title</h4>
-                            <p>Genre · Year</p>
-                            <div class="card-rating">⭐ @movie.VoteAverage</div>
+                            <p>Genre · Year</p>  @* Consider making this dynamic *@
+                            <div class="card-rating">⭐ @movie.VoteAverage.ToString("0.0")</div> @* Format the rating *@
                         </div>
                     </div>
                 }
             }
             else
             {
-                <p>Failed to load popular movies.</p>
+                <p>No popular movies to display on this page.</p>
             }
         </div>
+
+        @if (Model.PopularMovies != null && Model.PopularMovies.Any() && Model.PopularMoviesTotalPages > 1)
+        {
+            <nav aria-label="Popular Movies Navigation">
+                <ul class="pagination justify-content-center">
+                    @if (Model.HasPreviousPopularMoviesPage)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" asp-controller="Home" asp-action="Index" asp-route-page="@(Model.PopularMoviesCurrentPage - 1)">Previous</a>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="page-item disabled">
+                            <span class="page-link">Previous</span>
+                        </li>
+                    }
+
+                    @* Optional: Loop to display page numbers - for simplicity, keeping Previous/Next only for now
+                @{
+                int startPage = Math.Max(1, Model.PopularMoviesCurrentPage - 2);
+                int endPage = Math.Min(Model.PopularMoviesTotalPages, Model.PopularMoviesCurrentPage + 2);
+                if (Model.PopularMoviesTotalPages <= 5) { // Show all pages if 5 or less
+                startPage = 1;
+                endPage = Model.PopularMoviesTotalPages;
+                } else {
+                if (Model.PopularMoviesCurrentPage <= 3) {
+                endPage = 5;
+                } else if (Model.PopularMoviesCurrentPage + 2 >= Model.PopularMoviesTotalPages) {
+                startPage = Model.PopularMoviesTotalPages - 4;
+                }
+                }
+                }
+                @if (startPage > 1) {
+                <li class="page-item"><a class="page-link" asp-controller="Home" asp-action="Index" asp-route-page="1">1</a></li>
+                @if (startPage > 2) { <li class="page-item disabled"><span class="page-link">...</span></li> }
+                }
+                @for (int i = startPage; i <= endPage; i++)
+                {
+                <li class="page-item @(i == Model.PopularMoviesCurrentPage ? "active" : "")">
+                <a class="page-link" asp-controller="Home" asp-action="Index" asp-route-page="@i">@i</a>
+                </li>
+                }
+                @if (endPage < Model.PopularMoviesTotalPages) {
+                @if (endPage < Model.PopularMoviesTotalPages - 1) { <li class="page-item disabled"><span class="page-link">...</span></li> }
+                <li class="page-item"><a class="page-link" asp-controller="Home" asp-action="Index" asp-route-page="@Model.PopularMoviesTotalPages">@Model.PopularMoviesTotalPages</a></li>
+                }
+                *@
+
+                    @if (Model.HasNextPopularMoviesPage)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" asp-controller="Home" asp-action="Index" asp-route-page="@(Model.PopularMoviesCurrentPage + 1)">Next</a>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="page-item disabled">
+                            <span class="page-link">Next</span>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        }
     </div>
 
     <div class="more-movies">
@@ -338,7 +439,7 @@
             @for (int i = 7; i <= 12; i++)
             {
                 <div class="movie-card">
-                    <img src="/images/sample-thumbnail.png" alt="Top Movie @i" />
+                    <img src="/images/sample-thumbnail.png" alt="Top Movie @i" /> @* Ensure you have this image *@
                     <div class="info">
                         <h4>Top Movie @i</h4>
                         <p>Drama · 202@i</p>
@@ -354,5 +455,5 @@
     <div class="footer-links">
         <a href="#">About</a> | <a href="#">Help</a> | <a href="#">Contact</a> | <a href="#">Privacy Policy</a> | <a href="#">Terms of Service</a>
     </div>
-    <p>&copy; 2025 Film Rating Service - Inspired by IMDb</p>
+    <p>&copy; @DateTime.Now.Year Film Rating Service - Inspired by IMDb</p> @* Changed to dynamic year *@
 </div>

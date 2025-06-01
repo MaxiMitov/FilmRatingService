@@ -1,5 +1,5 @@
 ﻿using FilmRatingService.Interfaces;
-using FilmRatingService.Models; // <<< ADD THIS LINE
+using FilmRatingService.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
@@ -13,19 +13,18 @@ namespace FilmRatingService.Services
 {
     public class MovieService : IMovieService
     {
-        // ... rest of the code remains the same
         private readonly HttpClient _httpClient;
-        private readonly ILogger<MovieService> _logger;
+        private readonly ILogger<MovieService> _logger; // Corrected type from ILogger<MovieService> to ILogger for CreateLogger
         private readonly string _apiKey;
 
-        public MovieService(IHttpClientFactory httpClientFactory, ILogger<MovieService> logger, IConfiguration configuration)
+        public MovieService(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IConfiguration configuration) // Corrected ILogger injection
         {
             _httpClient = httpClientFactory.CreateClient("TMDB");
             if (_httpClient.BaseAddress == null)
             {
                 _httpClient.BaseAddress = new Uri("https://api.themoviedb.org/3/");
             }
-            _logger = logger;
+            _logger = loggerFactory.CreateLogger<MovieService>(); // Corrected logger creation
             _apiKey = configuration["TMDBApiKey"] ?? "b2115f4c7e35c28847af5b084345ef7d";
         }
 
@@ -42,20 +41,25 @@ namespace FilmRatingService.Services
             }
         }
 
-        public async Task<MovieListResponse> GetPopularMoviesAsync()
+        // MODIFIED GetPopularMoviesAsync
+        public async Task<MovieListResponse> GetPopularMoviesAsync(int pageNumber = 1)
         {
+            if (pageNumber < 1) pageNumber = 1; // Ensure page number is valid
+
             try
             {
-                return await _httpClient.GetFromJsonAsync<MovieListResponse>($"movie/popular?api_key={_apiKey}");
+                // Append the page number to the API request
+                return await _httpClient.GetFromJsonAsync<MovieListResponse>($"movie/popular?api_key={_apiKey}&page={pageNumber}");
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError($"Error fetching popular movies: {ex.Message}");
-                return null;
+                _logger.LogError($"Error fetching popular movies for page {pageNumber}: {ex.Message}");
+                // Return an empty response or rethrow, depending on desired error handling
+                return new MovieListResponse { Results = new List<MovieDetails>(), Page = pageNumber, TotalPages = 0, TotalResults = 0 };
             }
         }
 
-        public async Task<MovieListResponse> SearchMoviesAsync(string query)
+        public async Task<MovieListResponse> SearchMoviesAsync(string query) // Consider adding paging here too eventually
         {
             if (string.IsNullOrWhiteSpace(query))
             {
@@ -63,7 +67,7 @@ namespace FilmRatingService.Services
             }
             try
             {
-                // Using TMDB's actual search endpoint is better:
+                // TMDB search also supports a 'page' parameter
                 var searchResponse = await _httpClient.GetFromJsonAsync<MovieListResponse>($"search/movie?api_key={_apiKey}&query={Uri.EscapeDataString(query)}");
                 return searchResponse;
             }
