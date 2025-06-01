@@ -3,13 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using FilmRatingService.Areas.Identity.Data;
 using FilmRatingService.Interfaces;
 using FilmRatingService.Services;
-using FilmRatingService.Data; // <<< ADD THIS LINE for DbInitializer
+using FilmRatingService.Data;
 
 namespace FilmRatingService
 {
     public class Program
     {
-        public static async Task Main(string[] args) // <<< MAKE MAIN ASYNC
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
             var connectionString = builder.Configuration.GetConnectionString("ApplicationDbContextConnection")
@@ -18,9 +18,9 @@ namespace FilmRatingService
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(connectionString));
 
-            builder.Services.AddDefaultIdentity<ApplicationUser>(options => //
+            builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
                 options.SignIn.RequireConfirmedAccount = true)
-                .AddRoles<IdentityRole>() // <<< ADD THIS to enable RoleManager
+                .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
 
             builder.Services.AddControllersWithViews();
@@ -34,17 +34,11 @@ namespace FilmRatingService
 
             var app = builder.Build();
 
-            // Seed the database with Admin role and user <<< ADD THIS SECTION
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
-                // It's good practice to ensure migrations are applied before seeding
-                // var dbContext = services.GetRequiredService<ApplicationDbContext>();
-                // await dbContext.Database.MigrateAsync(); // Uncomment if you want to ensure migrations run at startup
-
                 await DbInitializer.InitializeAsync(services);
             }
-            // End of seeding section
 
             if (!app.Environment.IsDevelopment())
             {
@@ -58,12 +52,31 @@ namespace FilmRatingService
             app.UseAuthentication();
             app.UseAuthorization();
 
-            app.MapControllerRoute(
-                name: "default",
-                pattern: "{controller=Home}/{action=Index}/{id?}");
-            app.MapRazorPages();
+            // Endpoint mapping
+            app.UseEndpoints(endpoints => // Modified this part
+            {
+                // Route for Admin Area
+                endpoints.MapControllerRoute(
+                    name: "AdminArea",
+                    pattern: "{area:exists}/{controller=Dashboard}/{action=Index}/{id?}" // Default to Dashboard controller in areas
+                );
 
-            await app.RunAsync(); // <<< MAKE RUN ASYNC (if Main is async, or just app.Run() if Main is not)
+                // Default route for non-area controllers
+                endpoints.MapControllerRoute(
+                    name: "default",
+                    pattern: "{controller=Home}/{action=Index}/{id?}"); //
+
+                endpoints.MapRazorPages(); // Needed for Identity UI pages
+            });
+
+
+            // Your old mapping looked like this, we are replacing it with app.UseEndpoints block above
+            // app.MapControllerRoute(
+            //     name: "default",
+            //     pattern: "{controller=Home}/{action=Index}/{id?}");
+            // app.MapRazorPages(); 
+
+            await app.RunAsync();
         }
     }
 }
