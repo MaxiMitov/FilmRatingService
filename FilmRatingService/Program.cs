@@ -12,6 +12,7 @@ namespace FilmRatingService
         public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
             var connectionString = builder.Configuration.GetConnectionString("ApplicationDbContextConnection")
                 ?? throw new InvalidOperationException("Connection string 'ApplicationDbContextConnection' not found.");
 
@@ -27,7 +28,7 @@ namespace FilmRatingService
 
             builder.Services.AddHttpClient("TMDB", client =>
             {
-                client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
+                client.BaseAddress = new Uri("https.api.themoviedb.org/3/");
             });
 
             builder.Services.AddScoped<IMovieService, MovieService>();
@@ -40,41 +41,44 @@ namespace FilmRatingService
                 await DbInitializer.InitializeAsync(services);
             }
 
+            // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
             {
-                app.UseExceptionHandler("/Home/Error");
+                app.UseExceptionHandler("/Home/Error"); // For unhandled exceptions
                 app.UseHsts();
             }
+            else
+            {
+                app.UseDeveloperExceptionPage(); // More details in development
+            }
+
+            // <<< ADD THIS MIDDLEWARE for handling HTTP status codes like 404 >>>
+            // It should generally be placed after exception handling but before routing that might depend on it,
+            // or before static files if you want it to handle errors for static files too (though less common).
+            // A good place is often after UseDeveloperExceptionPage/UseExceptionHandler.
+            app.UseStatusCodePagesWithReExecute("/Home/HttpStatusCodeHandler/{0}");
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
+
             app.UseRouting();
+
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // Endpoint mapping
-            app.UseEndpoints(endpoints => // Modified this part
+            app.UseEndpoints(endpoints =>
             {
-                // Route for Admin Area
                 endpoints.MapControllerRoute(
                     name: "AdminArea",
-                    pattern: "{area:exists}/{controller=Dashboard}/{action=Index}/{id?}" // Default to Dashboard controller in areas
+                    pattern: "{area:exists}/{controller=Dashboard}/{action=Index}/{id?}"
                 );
 
-                // Default route for non-area controllers
                 endpoints.MapControllerRoute(
                     name: "default",
-                    pattern: "{controller=Home}/{action=Index}/{id?}"); //
+                    pattern: "{controller=Home}/{action=Index}/{id?}");
 
-                endpoints.MapRazorPages(); // Needed for Identity UI pages
+                endpoints.MapRazorPages();
             });
-
-
-            // Your old mapping looked like this, we are replacing it with app.UseEndpoints block above
-            // app.MapControllerRoute(
-            //     name: "default",
-            //     pattern: "{controller=Home}/{action=Index}/{id?}");
-            // app.MapRazorPages(); 
 
             await app.RunAsync();
         }

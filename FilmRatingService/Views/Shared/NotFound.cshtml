@@ -1,0 +1,44 @@
+﻿@{
+    ViewData["Title"] = "Page Not Found (404)";
+}
+
+<div class="container text-center mt-5">
+    <div style="font-size: 6rem; color: #dc3545;">⚠️</div>
+    <h1 class="display-4 mt-3">Oops! Page Not Found</h1>
+    <p class="lead">
+        The page you are looking for might have been removed, had its name changed,
+        or is temporarily unavailable.
+    </p>
+    <p class="mt-4">
+        We're sorry for the inconvenience. You can go back to the
+        <a asp-controller="Home" asp-action="Index" class="btn btn-primary btn-lg">Homepage</a>.
+    </p>
+    <hr class="my-4">
+    <p class="text-muted">
+        If you believe this is an error, please contact support. <br />
+        Error Code: 404
+    </p>
+</div>
+
+<style>
+    /* Basic styling for the page, can be expanded or moved to site.css */
+    .container {
+        max-width: 700px;
+    }
+    /* If you have a dark theme, adjust colors accordingly */
+    body {
+        /* background-color: #181818; /* Example from your Index.cshtml */
+        /* color: #e0e0e0;       /* Example from your Index.cshtml */
+    }
+
+    .btn-primary {
+        /* background-color: #f5c518; /* IMDb yellow from your Index.cshtml */
+        /* border-color: #f5c518;
+           color: #000; */
+    }
+
+        .btn-primary:hover {
+            /* background-color: #ffd700;
+           border-color: #ffd700; */
+        }
+</style>
