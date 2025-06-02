@@ -1,15 +1,17 @@
+// Lines to add/modify are indicated
+
 using System.ComponentModel.DataAnnotations;
 using System.Text;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc; // Required for TempData (if not already implicitly available via PageModel)
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
-using FilmRatingService.Models;
-using FilmRatingService.Areas.Identity.Data;
+// using FilmRatingService.Models; // This using was present in your original file, ensure it's needed or remove if not
+using FilmRatingService.Areas.Identity.Data; // Ensure this points to your ApplicationUser
 
 
 namespace FilmRatingService.Areas.Identity.Pages.Account
@@ -49,7 +51,7 @@ namespace FilmRatingService.Areas.Identity.Pages.Account
         {
             [Required]
             [Display(Name = "Full Name")]
-            public string Name { get; set; }
+            public string Name { get; set; } // Custom property
 
             [Required]
             [EmailAddress]
@@ -81,7 +83,7 @@ namespace FilmRatingService.Areas.Identity.Pages.Account
             if (ModelState.IsValid)
             {
                 var user = CreateUser();
-                user.Name = Input.Name;
+                user.Name = Input.Name; // Setting the custom Name property
 
                 await _userStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
                 await _emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
@@ -96,20 +98,23 @@ namespace FilmRatingService.Areas.Identity.Pages.Account
                     code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
                     var callbackUrl = Url.Page(
                         "/Account/ConfirmEmail",
-                        null,
-                        new { area = "Identity", userId, code, returnUrl },
-                        Request.Scheme);
+                        pageHandler: null,
+                        values: new { area = "Identity", userId = userId, code = code, returnUrl = returnUrl },
+                        protocol: Request.Scheme);
 
                     await _emailSender.SendEmailAsync(Input.Email, "Confirm your email",
                         $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>clicking here</a>.");
 
-                    if (_userManager.Options.SignIn.RequireConfirmedAccount)
+                    // <<< SET TEMPDATA MESSAGE HERE >>>
+                    if (_userManager.Options.SignIn.RequireConfirmedAccount) // This is true in your Program.cs
                     {
-                        return RedirectToPage("RegisterConfirmation", new { email = Input.Email, returnUrl });
+                        TempData["StatusMessage"] = "Registration successful! Please check your email to confirm your account.";
+                        return RedirectToPage("RegisterConfirmation", new { email = Input.Email, returnUrl = returnUrl });
                     }
                     else
                     {
                         await _signInManager.SignInAsync(user, isPersistent: false);
+                        TempData["StatusMessage"] = "Registration successful! You are now logged in.";
                         return LocalRedirect(returnUrl);
                     }
                 }
@@ -119,6 +124,7 @@ namespace FilmRatingService.Areas.Identity.Pages.Account
                 }
             }
 
+            // If we got this far, something failed, redisplay form
             return Page();
         }
 
@@ -131,15 +137,17 @@ namespace FilmRatingService.Areas.Identity.Pages.Account
             catch
             {
                 throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'. " +
-                    $"Ensure that '{nameof(ApplicationUser)}' is not abstract and has a parameterless constructor.");
+                    $"Ensure that '{nameof(ApplicationUser)}' is not abstract and has a parameterless constructor, or alternatively " +
+                    $"override the register page in /Areas/Identity/Pages/Account/Register.cshtml");
             }
         }
 
         private IUserEmailStore<ApplicationUser> GetEmailStore()
         {
             if (!_userManager.SupportsUserEmail)
+            {
                 throw new NotSupportedException("The default UI requires a user store with email support.");
-
+            }
             return (IUserEmailStore<ApplicationUser>)_userStore;
         }
     }
