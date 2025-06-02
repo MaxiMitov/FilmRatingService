@@ -23,9 +23,6 @@ namespace FilmRatingService.Controllers
 
         // MODIFIED: Added [ResponseCache] attribute to the Index action
         [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "page" })]
-        // Duration is in seconds (e.g., 600 seconds = 10 minutes)
-        // Location = ResponseCacheLocation.Any allows caching by client and proxies
-        // VaryByQueryKeys ensures that different pages of results are cached separately
         public async Task<IActionResult> Index([FromQuery] int page = 1)
         {
             if (page < 1) page = 1;
@@ -57,7 +54,7 @@ namespace FilmRatingService.Controllers
         }
 
         // This Error action is typically for unhandled exceptions (used by UseExceptionHandler)
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)] // This disables caching for the error page
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier }); // Using ErrorViewModel
@@ -107,6 +104,27 @@ namespace FilmRatingService.Controllers
                     ViewData["ErrorMessage"] = $"An unexpected error occurred (Status Code: {statusCode}). Please try again later or contact support.";
                     return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
+        }
+
+        // <<< NEW ACTION METHOD FOR MOVIE DETAILS PAGE >>>
+        public async Task<IActionResult> Details(int id) // 'id' will be the movieId
+        {
+            if (id <= 0)
+            {
+                // Invalid movie ID, redirect to a Bad Request error page
+                return RedirectToAction("HttpStatusCodeHandler", new { statusCode = 400 });
+            }
+
+            var movieDetails = await _movieService.GetMovieDetailsAsync(id);
+
+            if (movieDetails == null)
+            {
+                // Movie not found by the service, redirect to a Not Found error page
+                return RedirectToAction("HttpStatusCodeHandler", new { statusCode = 404 });
+            }
+
+            // Pass the MovieDetails object to the Details view
+            return View(movieDetails); // This will look for Views/Home/Details.cshtml
         }
     }
 }

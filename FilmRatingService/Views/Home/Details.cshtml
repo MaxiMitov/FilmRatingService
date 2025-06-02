@@ -1,0 +1,183 @@
+﻿@model FilmRatingService.Models.MovieDetails
+@{
+    ViewData["Title"] = Model?.Title ?? "Movie Details";
+}
+
+<style>
+    /* Basic styling, you can adapt this to your site's theme */
+    .movie-details-container {
+        max-width: 900px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #2b2b2b;
+        border-radius: 8px;
+        color: #f0f0f0;
+    }
+
+    .movie-details-header {
+        margin-bottom: 20px;
+        border-bottom: 1px solid #444;
+        padding-bottom: 15px;
+    }
+
+        .movie-details-header h1 {
+            color: #f5c518;
+            margin-bottom: 5px;
+        }
+    /* IMDb yellow */
+    .movie-details-content {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    /* Default to column for smaller screens */
+    .movie-details-poster img {
+        width: 100%;
+        max-width: 300px;
+        height: auto;
+        border-radius: 5px;
+        display: block;
+        margin: 0 auto 20px auto;
+    }
+    /* Centered poster */
+    .movie-details-info {
+        flex-grow: 1;
+    }
+
+        .movie-details-info p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .movie-details-info strong {
+            color: #ccc;
+        }
+
+    .rating-section {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #333;
+        border-radius: 5px;
+    }
+
+        .rating-section h3 {
+            margin-top: 0;
+            color: #f5c518;
+        }
+
+    #movieRatingSection .loading-text {
+        color: #aaa;
+    }
+
+    #movieRatingSection .error-text {
+        color: #dc3545;
+        font-style: italic;
+    }
+
+    #movieRatingSection ul {
+        list-style-type: none;
+        padding-left: 0;
+    }
+
+    #movieRatingSection li {
+        margin-bottom: 5px;
+    }
+
+    /* Responsive layout for larger screens */
+    @@media (min-width: 768px) {
+        .movie-details-content {
+            flex-direction: row; /* Side-by-side for larger screens */
+        }
+
+        .movie-details-poster img {
+            margin: 0; /* Align left on larger screens */
+        }
+    }
+</style>
+
+<div class="movie-details-container">
+    @if (Model != null)
+    {
+        <div class="movie-details-header">
+            <h1>@Model.Title</h1>
+        </div>
+
+        <div class="movie-details-content">
+            <div class="movie-details-poster">
+                @if (!string.IsNullOrEmpty(Model.PosterPath))
+                {
+                    <img src="https://image.tmdb.org/t/p/w500/@Model.PosterPath" alt="Poster for @Model.Title" />
+                }
+                else
+                {
+                    <img src="/images/default-poster.png" alt="No poster available" />
+                }
+            </div>
+            <div class="movie-details-info">
+                <p><strong>Overview:</strong> @Model.Overview</p>
+                @if (Model.VoteAverage > 0)
+                {
+                    <p><strong>Average Vote (from TMDB):</strong> @Model.VoteAverage.ToString("0.0") / 10</p>
+                }
+
+                <div class="rating-section">
+                    <h3>User Ratings & Reviews</h3>
+                    <div id="movieRatingSection">
+                        <p class="loading-text">Loading ratings...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <p class="text-danger">Movie details could not be loaded. The movie might not exist or there was an error.</p>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // Get the movie ID from the Razor model
+            // Ensure Model is not null and Model.Id is valid before making the call
+            var movieId = @(Model?.Id ?? 0);
+
+            if (movieId > 0) {
+                var apiUrl = `/api/Ratings/${movieId}`;
+                var $ratingSection = $("#movieRatingSection");
+
+                $.ajax({
+                    url: apiUrl,
+                    type: "GET",
+                    dataType: "json",
+                    success: function (data) {
+                        // Clear the "Loading..." message
+                        $ratingSection.empty();
+
+                        // Build HTML to display the rating data
+                        // This is for the dummy data structure: { movieId, averageRating, userRating, totalRatings }
+                        var content = "<ul>";
+                        content += `<li><strong>Movie ID:</strong> ${data.movieId}</li>`;
+                        content += `<li><strong>Average Rating (Placeholder):</strong> ${data.averageRating} / 10</li>`;
+                        content += `<li><strong>Your Rating (Placeholder):</strong> ${(data.userRating ? data.userRating : 'Not rated yet')}</li>`;
+                        content += `<li><strong>Total Ratings (Placeholder):</strong> ${data.totalRatings}</li>`;
+                        content += "</ul>";
+                        // Later, you might loop through actual reviews if the API returns a list
+
+                        $ratingSection.html(content);
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        console.error("Error fetching ratings:", textStatus, errorThrown);
+                        console.error("Response Text:", jqXHR.responseText);
+                        // Display an error message to the user
+                        $ratingSection.html(`<p class="error-text">Could not load ratings at this time. Status: ${jqXHR.status} - ${errorThrown || jqXHR.responseText}</p>`);
+                    }
+                });
+            } else {
+                // Handle cases where movieId is not valid (e.g., Model or Model.Id is null/0)
+                $("#movieRatingSection").html('<p class="error-text">Could not load ratings: Invalid Movie ID.</p>');
+                console.warn("Movie ID is invalid or not available for AJAX call.");
+            }
+        });
+    </script>
+}
