@@ -11,6 +11,7 @@ using FilmRatingService.Services; // Your MovieService namespace
 using FilmRatingService.Interfaces; // Your IMovieService namespace
 using FilmRatingService.Models;   // Your Models namespace
 using System.Text.Json;       // For serializing test data
+using System; // Required for Func
 
 namespace FilmRatingService.Tests
 {
@@ -20,9 +21,9 @@ namespace FilmRatingService.Tests
         private Mock<IHttpClientFactory> _mockHttpClientFactory;
         private Mock<HttpMessageHandler> _mockHttpMessageHandler;
         private Mock<ILoggerFactory> _mockLoggerFactory;
-        private Mock<ILogger> _mockLogger; // Using ILogger directly as per MovieService constructor
+        private Mock<ILogger> _mockLogger;
         private Mock<IConfiguration> _mockConfiguration;
-        private MovieService _movieService; // The service we are testing
+        private MovieService _movieService;
 
         [SetUp]
         public void Setup()
@@ -31,26 +32,19 @@ namespace FilmRatingService.Tests
 
             var httpClient = new HttpClient(_mockHttpMessageHandler.Object)
             {
-                BaseAddress = new System.Uri("https://api.themoviedb.org/3/") // Match base address
+                BaseAddress = new System.Uri("https://api.themoviedb.org/3/")
             };
 
             _mockHttpClientFactory = new Mock<IHttpClientFactory>();
             _mockHttpClientFactory.Setup(_ => _.CreateClient(It.IsAny<string>())).Returns(httpClient);
 
-            // Mock ILoggerFactory and ILogger
-            // Your MovieService uses loggerFactory.CreateLogger("MovieService");
-            _mockLogger = new Mock<ILogger>(); // Generic ILogger mock
+            _mockLogger = new Mock<ILogger>();
             _mockLoggerFactory = new Mock<ILoggerFactory>();
             _mockLoggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(_mockLogger.Object);
 
-
-            // Mock IConfiguration for the API key
             _mockConfiguration = new Mock<IConfiguration>();
-            // Mock the configuration value for TMDBApiKey
-            // You can use a mock configuration section if your actual config is more complex
             _mockConfiguration.Setup(c => c["TMDBApiKey"]).Returns("test_api_key");
 
-            // Initialize the MovieService with mocked dependencies
             _movieService = new MovieService(
                 _mockHttpClientFactory.Object,
                 _mockLoggerFactory.Object,
@@ -78,14 +72,13 @@ namespace FilmRatingService.Tests
                 Content = new StringContent(apiResponseJson)
             };
 
-            // Setup the protected SendAsync method of HttpMessageHandler
             _mockHttpMessageHandler
                 .Protected()
                 .Setup<Task<HttpResponseMessage>>(
                     "SendAsync",
                     ItExpr.Is<HttpRequestMessage>(req =>
                         req.Method == HttpMethod.Get &&
-                        req.RequestUri.ToString().Contains($"movie/{movieId}?api_key=test_api_key")), // Check URL
+                        req.RequestUri.ToString().Contains($"movie/{movieId}?api_key=test_api_key")),
                     ItExpr.IsAny<CancellationToken>()
                 )
                 .ReturnsAsync(httpResponseMessage);
@@ -100,10 +93,9 @@ namespace FilmRatingService.Tests
             Assert.That(result.Overview, Is.EqualTo(expectedMovieDetails.Overview));
             Assert.That(result.VoteAverage, Is.EqualTo(expectedMovieDetails.VoteAverage));
 
-            // Verify that SendAsync was called on the HttpMessageHandler
             _mockHttpMessageHandler.Protected().Verify(
                 "SendAsync",
-                Times.Once(), // We expect it to be called exactly once
+                Times.Once(),
                 ItExpr.Is<HttpRequestMessage>(req =>
                     req.Method == HttpMethod.Get &&
                     req.RequestUri.ToString().Contains($"movie/{movieId}")),
@@ -111,9 +103,54 @@ namespace FilmRatingService.Tests
             );
         }
 
-        // We will add more tests here:
-        // - GetMovieDetailsAsync_WhenApiCallFails_ReturnsNull
+        // <<< NEW TEST METHOD ADDED HERE >>>
+        [Test]
+        public async Task GetMovieDetailsAsync_WhenApiCallFails_ReturnsNull()
+        {
+            // Arrange
+            var movieId = 999; // An ID that we'll simulate as not found or causing an error
+
+            // Simulate an unsuccessful API response (e.g., NotFound)
+            var httpResponseMessage = new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.NotFound // Could also be InternalServerError, etc.
+                // No content needed, or an empty StringContent if the API returns a body on error
+            };
+
+            _mockHttpMessageHandler
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.Is<HttpRequestMessage>(req =>
+                        req.Method == HttpMethod.Get &&
+                        req.RequestUri.ToString().Contains($"movie/{movieId}")), // Check only relevant part of URL
+                    ItExpr.IsAny<CancellationToken>()
+                )
+                .ReturnsAsync(httpResponseMessage);
+
+            // Act
+            var result = await _movieService.GetMovieDetailsAsync(movieId);
+
+            // Assert
+            Assert.That(result, Is.Null, "Service should return null when API call fails or movie is not found.");
+
+            // Optional: Verify that an error was logged.
+            // Your MovieService's GetMovieDetailsAsync logs an error in the catch block.
+            // This verification ensures that your error handling path is being invoked.
+            _mockLogger.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error), // Check that it's an Error log
+                    It.IsAny<EventId>(), // We don't care about the specific EventId
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains($"Error fetching movie details for ID {movieId}")), // Check if the log message contains the expected text
+                    It.IsAny<HttpRequestException>(), // Expect an HttpRequestException to be logged
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()), // We don't care about the formatter
+                Times.Once // Ensure it was logged exactly once
+            );
+        }
+
+        // We will add more tests here for:
         // - GetPopularMoviesAsync_WhenApiCallIsSuccessful_ReturnsMovieListResponse
+        // - GetPopularMoviesAsync_WhenApiCallFails_ReturnsEmptyOrNull
         // - SearchMoviesAsync_WithValidQuery_ReturnsMovieListResponse
         // etc.
     }
