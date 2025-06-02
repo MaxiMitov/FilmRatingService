@@ -1,0 +1,92 @@
+﻿@model IEnumerable<FilmRatingService.Models.UserReview>
+@* This partial view expects a collection of UserReview objects *@
+
+<style>
+    .review-item {
+        background-color: #3a3a3a; /* Slightly lighter than rating-section background */
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+        border: 1px solid #444;
+    }
+
+    .review-header {
+        margin-bottom: 8px;
+    }
+
+        .review-header .reviewer-name {
+            font-weight: bold;
+            color: #f5c518; /* IMDb yellow */
+        }
+
+        .review-header .review-date {
+            font-size: 0.85em;
+            color: #aaa;
+            margin-left: 10px;
+        }
+
+    .review-rating {
+        margin-bottom: 8px;
+        color: #f5c518; /* IMDb yellow for stars */
+    }
+
+    .review-text {
+        line-height: 1.5;
+        color: #e0e0e0;
+        white-space: pre-wrap; /* Preserve whitespace and newlines in review text */
+    }
+</style>
+
+@if (Model != null && Model.Any())
+{
+    foreach (var review in Model)
+    {
+        <div class="review-item">
+            <div class="review-header">
+                <span class="reviewer-name">
+                    @* Display the User's custom Name property if available, otherwise UserName (email) *@
+                    @(!string.IsNullOrEmpty(review.User?.Name) ? review.User.Name : review.User?.UserName ?? "Anonymous")
+                </span>
+                <span class="review-date">
+                    @review.ReviewDate.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                </span>
+            </div>
+            <div class="review-rating">
+                @for (int i = 1; i <= 10; i++)
+                {
+                    if (i <= review.Rating)
+                    {
+                        <span class="star-filled">★</span> @* Filled star *@
+                    }
+                    else
+                    {
+                        <span class="star-empty">☆</span> @* Empty star *@
+                    }
+                }
+                (@review.Rating/10)
+            </div>
+            @if (!string.IsNullOrEmpty(review.ReviewText))
+            {
+                <p class="review-text">@review.ReviewText</p>
+            }
+            else
+            {
+                <p class="review-text fst-italic">No review text provided.</p>
+            }
+        </div>
+    }
+}
+else
+{
+    <p>No reviews yet for this movie. Be the first to write one!</p>
+}
+
+<style>
+    .star-filled {
+        color: #f5c518;
+    }
+    /* IMDb Yellow */
+    .star-empty {
+        color: #666;
+    }
+</style>

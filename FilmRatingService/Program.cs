@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using FilmRatingService.Areas.Identity.Data;
-using FilmRatingService.Interfaces;
-using FilmRatingService.Services;
+using FilmRatingService.Interfaces; // This should already be here for IMovieService
+using FilmRatingService.Services;   // This should already be here for MovieService
 using FilmRatingService.Data;
 
 namespace FilmRatingService
@@ -28,13 +28,13 @@ namespace FilmRatingService
 
             builder.Services.AddHttpClient("TMDB", client =>
             {
-                client.BaseAddress = new Uri("https://api.themoviedb.org/3/"); // Corrected this in a previous step
+                client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
             });
 
             builder.Services.AddScoped<IMovieService, MovieService>();
+            builder.Services.AddScoped<IReviewService, ReviewService>(); // <<< THIS IS THE NEW LINE TO ADD
 
-            // <<< ADD THIS LINE to register response caching services >>>
-            builder.Services.AddResponseCaching();
+            builder.Services.AddResponseCaching(); // From a previous commit
 
             var app = builder.Build();
 
@@ -60,11 +60,7 @@ namespace FilmRatingService
 
             app.UseRouting();
 
-            // <<< ADD THIS LINE to enable the response caching middleware >>>
-            // It's generally recommended to place it before middleware that serves responses you want to cache,
-            // like UseAuthentication, UseAuthorization, and UseEndpoints.
-            // Also, place it after UseRouting so it can use routing information if needed for cache variance.
-            app.UseResponseCaching();
+            app.UseResponseCaching(); // From a previous commit
 
             app.UseAuthentication();
             app.UseAuthorization();

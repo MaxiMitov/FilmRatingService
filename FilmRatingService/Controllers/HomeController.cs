@@ -1,10 +1,10 @@
-using FilmRatingService.Interfaces;
-using FilmRatingService.Models;
+using FilmRatingService.Interfaces; // Ensure IReviewService is included via this or another using
+using FilmRatingService.Models;   // Ensure MovieDetailsPageViewModel is included
 
-using Microsoft.AspNetCore.Mvc; // ResponseCacheAttribute is in this namespace
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
-using System.Collections.Generic;
+using System.Collections.Generic; // For List
 using System.Diagnostics;
 using System.Threading.Tasks;
 
@@ -14,24 +14,27 @@ namespace FilmRatingService.Controllers
     {
         private readonly ILogger<HomeController> _logger;
         private readonly IMovieService _movieService;
+        private readonly IReviewService _reviewService; // <<< ADD IReviewService INJECTION
 
-        public HomeController(ILogger<HomeController> logger, IMovieService movieService)
+        public HomeController(
+            ILogger<HomeController> logger,
+            IMovieService movieService,
+            IReviewService reviewService) // <<< ADD IReviewService to constructor
         {
             _logger = logger;
             _movieService = movieService;
+            _reviewService = reviewService; // <<< ASSIGN IReviewService
         }
 
-        // MODIFIED: Added [ResponseCache] attribute to the Index action
         [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "page" })]
         public async Task<IActionResult> Index([FromQuery] int page = 1)
         {
             if (page < 1) page = 1;
-
             int featuredMovieId = 157336;
             MovieDetails featuredMovie = await _movieService.GetMovieDetailsAsync(featuredMovieId);
             MovieListResponse popularMoviesResponse = await _movieService.GetPopularMoviesAsync(page);
 
-            var viewModel = new FeaturedMovieViewModel // Using FeaturedMovieViewModel
+            var viewModel = new FeaturedMovieViewModel
             {
                 Title = featuredMovie?.Title ?? "Featured Movie Title",
                 Description = featuredMovie?.Overview ?? "Featured Movie Description",
@@ -44,27 +47,54 @@ namespace FilmRatingService.Controllers
                 PopularMoviesCurrentPage = popularMoviesResponse?.Page ?? page,
                 PopularMoviesTotalPages = popularMoviesResponse?.TotalPages ?? 0
             };
-
             return View(viewModel);
         }
+
+        // MODIFIED Details action
+        public async Task<IActionResult> Details(int id) // 'id' will be the movieId
+        {
+            if (id <= 0)
+            {
+                return RedirectToAction("HttpStatusCodeHandler", new { statusCode = 400 });
+            }
+
+            var movieDetails = await _movieService.GetMovieDetailsAsync(id);
+            if (movieDetails == null)
+            {
+                return RedirectToAction("HttpStatusCodeHandler", new { statusCode = 404 });
+            }
+
+            // Fetch reviews for this movie
+            var reviews = await _reviewService.GetReviewsForMovieAsync(id);
+
+            // Create the new ViewModel
+            var viewModel = new MovieDetailsPageViewModel
+            {
+                Movie = movieDetails,
+                Reviews = reviews ?? new List<UserReview>()
+                // If you wanted the review form on this page:
+                // NewReview = new AddReviewViewModel { MovieId = id, MovieTitle = movieDetails.Title } 
+            };
+
+            return View(viewModel); // Pass MovieDetailsPageViewModel to the Details.cshtml view
+        }
+
 
         public IActionResult Privacy()
         {
             return View();
         }
 
-        // This Error action is typically for unhandled exceptions (used by UseExceptionHandler)
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier }); // Using ErrorViewModel
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
         [HttpGet]
         public async Task<IActionResult> Search(string query, [FromQuery] int page = 1)
         {
             if (page < 1) page = 1;
-
             var searchViewModel = new MovieSearchViewModel { Query = query, CurrentPage = page };
 
             if (string.IsNullOrWhiteSpace(query))
@@ -76,12 +106,10 @@ namespace FilmRatingService.Controllers
             }
 
             MovieListResponse response = await _movieService.SearchMoviesAsync(query, page);
-
             searchViewModel.Results = response?.Results ?? new List<MovieDetails>();
             searchViewModel.CurrentPage = response?.Page ?? page;
             searchViewModel.TotalPages = response?.TotalPages ?? 0;
             searchViewModel.TotalResults = response?.TotalResults ?? 0;
-
             return View("SearchResults", searchViewModel);
         }
 
@@ -104,27 +132,6 @@ namespace FilmRatingService.Controllers
                     ViewData["ErrorMessage"] = $"An unexpected error occurred (Status Code: {statusCode}). Please try again later or contact support.";
                     return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
-        }
-
-        // <<< NEW ACTION METHOD FOR MOVIE DETAILS PAGE >>>
-        public async Task<IActionResult> Details(int id) // 'id' will be the movieId
-        {
-            if (id <= 0)
-            {
-                // Invalid movie ID, redirect to a Bad Request error page
-                return RedirectToAction("HttpStatusCodeHandler", new { statusCode = 400 });
-            }
-
-            var movieDetails = await _movieService.GetMovieDetailsAsync(id);
-
-            if (movieDetails == null)
-            {
-                // Movie not found by the service, redirect to a Not Found error page
-                return RedirectToAction("HttpStatusCodeHandler", new { statusCode = 404 });
-            }
-
-            // Pass the MovieDetails object to the Details view
-            return View(movieDetails); // This will look for Views/Home/Details.cshtml
         }
     }
 }

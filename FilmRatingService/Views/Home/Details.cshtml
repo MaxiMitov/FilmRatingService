@@ -1,10 +1,12 @@
-﻿@model FilmRatingService.Models.MovieDetails
+﻿@model FilmRatingService.Models.MovieDetailsPageViewModel
 @{
-    ViewData["Title"] = Model?.Title ?? "Movie Details";
+    ViewData["Title"] = Model.Movie?.Title ?? "Movie Details";
 }
 
 <style>
-    /* Basic styling, you can adapt this to your site's theme */
+    /* Styles from your previous Details.cshtml (movie-details-container, etc.) */
+    /* I'm including them here for completeness based on previous versions. */
+    /* Ensure these are adapted or moved to site.css if they become common. */
     .movie-details-container {
         max-width: 900px;
         margin: 20px auto;
@@ -24,13 +26,13 @@
             color: #f5c518;
             margin-bottom: 5px;
         }
-    /* IMDb yellow */
+
     .movie-details-content {
         display: flex;
         flex-direction: column;
         gap: 20px;
     }
-    /* Default to column for smaller screens */
+
     .movie-details-poster img {
         width: 100%;
         max-width: 300px;
@@ -39,7 +41,7 @@
         display: block;
         margin: 0 auto 20px auto;
     }
-    /* Centered poster */
+
     .movie-details-info {
         flex-grow: 1;
     }
@@ -54,59 +56,57 @@
         }
 
     .rating-section {
-        margin-top: 20px;
-        padding: 15px;
-        background-color: #333;
-        border-radius: 5px;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #444; /* Separator line */
     }
 
         .rating-section h3 {
-            margin-top: 0;
+            margin-bottom: 20px;
             color: #f5c518;
         }
 
-    #movieRatingSection .loading-text {
-        color: #aaa;
+    .add-review-link-container {
+        margin-bottom: 20px;
     }
 
-    #movieRatingSection .error-text {
-        color: #dc3545;
-        font-style: italic;
+    .btn-add-review { /* Style for the add review button */
+        background-color: #f5c518;
+        color: #000;
+        font-weight: bold;
+        padding: 8px 15px;
+        text-decoration: none;
+        border-radius: 4px;
     }
 
-    #movieRatingSection ul {
-        list-style-type: none;
-        padding-left: 0;
-    }
+        .btn-add-review:hover {
+            background-color: #e4b80f;
+        }
 
-    #movieRatingSection li {
-        margin-bottom: 5px;
-    }
 
-    /* Responsive layout for larger screens */
     @@media (min-width: 768px) {
         .movie-details-content {
-            flex-direction: row; /* Side-by-side for larger screens */
+            flex-direction: row;
         }
 
         .movie-details-poster img {
-            margin: 0; /* Align left on larger screens */
+            margin: 0;
         }
     }
 </style>
 
 <div class="movie-details-container">
-    @if (Model != null)
+    @if (Model.Movie != null)
     {
         <div class="movie-details-header">
-            <h1>@Model.Title</h1>
+            <h1>@Model.Movie.Title</h1>
         </div>
 
         <div class="movie-details-content">
             <div class="movie-details-poster">
-                @if (!string.IsNullOrEmpty(Model.PosterPath))
+                @if (!string.IsNullOrEmpty(Model.Movie.PosterPath))
                 {
-                    <img src="https://image.tmdb.org/t/p/w500/@Model.PosterPath" alt="Poster for @Model.Title" />
+                    <img src="https://image.tmdb.org/t/p/w500/@Model.Movie.PosterPath" alt="Poster for @Model.Movie.Title" />
                 }
                 else
                 {
@@ -114,70 +114,46 @@
                 }
             </div>
             <div class="movie-details-info">
-                <p><strong>Overview:</strong> @Model.Overview</p>
-                @if (Model.VoteAverage > 0)
+                <p><strong>Overview:</strong> @Model.Movie.Overview</p>
+                @if (Model.Movie.VoteAverage > 0)
                 {
-                    <p><strong>Average Vote (from TMDB):</strong> @Model.VoteAverage.ToString("0.0") / 10</p>
+                    <p><strong>Average Vote (from TMDB):</strong> @Model.Movie.VoteAverage.ToString("0.0") / 10</p>
                 }
-
-                <div class="rating-section">
-                    <h3>User Ratings & Reviews</h3>
-                    <div id="movieRatingSection">
-                        <p class="loading-text">Loading ratings...</p>
-                    </div>
-                </div>
+                @* Add other movie details here as needed *@
             </div>
+        </div>
+
+        <div class="rating-section">
+            <h3>User Reviews & Ratings</h3>
+
+            @if (User.Identity.IsAuthenticated) // Only show "Add Review" link if user is logged in
+            {
+                <div class="add-review-link-container">
+                    <a asp-controller="Reviews" asp-action="Create" asp-route-movieId="@Model.Movie.Id" class="btn-add-review">
+                        Write a Review for @Model.Movie.Title
+                    </a>
+                </div>
+            }
+            else
+            {
+                <p><a asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@(Context.Request.Path + Context.Request.QueryString.Value)">Login</a> to write a review.</p>
+            }
+
+            @* Render the partial view for displaying reviews *@
+            <partial name="/Views/Reviews/_MovieReviewsList.cshtml" model="Model.Reviews" />
         </div>
     }
     else
     {
-        <p class="text-danger">Movie details could not be loaded. The movie might not exist or there was an error.</p>
+        <p class="text-danger">Movie details could not be loaded.</p>
     }
 </div>
 
-@section Scripts {
-    <script>
-        $(document).ready(function () {
-            // Get the movie ID from the Razor model
-            // Ensure Model is not null and Model.Id is valid before making the call
-            var movieId = @(Model?.Id ?? 0);
-
-            if (movieId > 0) {
-                var apiUrl = `/api/Ratings/${movieId}`;
-                var $ratingSection = $("#movieRatingSection");
-
-                $.ajax({
-                    url: apiUrl,
-                    type: "GET",
-                    dataType: "json",
-                    success: function (data) {
-                        // Clear the "Loading..." message
-                        $ratingSection.empty();
-
-                        // Build HTML to display the rating data
-                        // This is for the dummy data structure: { movieId, averageRating, userRating, totalRatings }
-                        var content = "<ul>";
-                        content += `<li><strong>Movie ID:</strong> ${data.movieId}</li>`;
-                        content += `<li><strong>Average Rating (Placeholder):</strong> ${data.averageRating} / 10</li>`;
-                        content += `<li><strong>Your Rating (Placeholder):</strong> ${(data.userRating ? data.userRating : 'Not rated yet')}</li>`;
-                        content += `<li><strong>Total Ratings (Placeholder):</strong> ${data.totalRatings}</li>`;
-                        content += "</ul>";
-                        // Later, you might loop through actual reviews if the API returns a list
-
-                        $ratingSection.html(content);
-                    },
-                    error: function (jqXHR, textStatus, errorThrown) {
-                        console.error("Error fetching ratings:", textStatus, errorThrown);
-                        console.error("Response Text:", jqXHR.responseText);
-                        // Display an error message to the user
-                        $ratingSection.html(`<p class="error-text">Could not load ratings at this time. Status: ${jqXHR.status} - ${errorThrown || jqXHR.responseText}</p>`);
-                    }
-                });
-            } else {
-                // Handle cases where movieId is not valid (e.g., Model or Model.Id is null/0)
-                $("#movieRatingSection").html('<p class="error-text">Could not load ratings: Invalid Movie ID.</p>');
-                console.warn("Movie ID is invalid or not available for AJAX call.");
-            }
-        });
-    </script>
-}
+@* The old AJAX script section can be removed as we are now loading reviews with the page *@
+@* @section Scripts {
+        <script>
+            // Previous AJAX call for dummy ratings is no longer needed here
+            // if reviews are loaded server-side and passed in the ViewModel.
+        </script>
+    }
+*@
