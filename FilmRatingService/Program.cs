@@ -28,10 +28,13 @@ namespace FilmRatingService
 
             builder.Services.AddHttpClient("TMDB", client =>
             {
-                client.BaseAddress = new Uri("https://api.themoviedb.org/3/"); // Corrected line
+                client.BaseAddress = new Uri("https://api.themoviedb.org/3/"); // Corrected this in a previous step
             });
 
             builder.Services.AddScoped<IMovieService, MovieService>();
+
+            // <<< ADD THIS LINE to register response caching services >>>
+            builder.Services.AddResponseCaching();
 
             var app = builder.Build();
 
@@ -41,27 +44,27 @@ namespace FilmRatingService
                 await DbInitializer.InitializeAsync(services);
             }
 
-            // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
             {
-                app.UseExceptionHandler("/Home/Error"); // For unhandled exceptions
+                app.UseExceptionHandler("/Home/Error");
                 app.UseHsts();
             }
             else
             {
-                app.UseDeveloperExceptionPage(); // More details in development
+                app.UseDeveloperExceptionPage();
             }
 
-            // <<< ADD THIS MIDDLEWARE for handling HTTP status codes like 404 >>>
-            // It should generally be placed after exception handling but before routing that might depend on it,
-            // or before static files if you want it to handle errors for static files too (though less common).
-            // A good place is often after UseDeveloperExceptionPage/UseExceptionHandler.
             app.UseStatusCodePagesWithReExecute("/Home/HttpStatusCodeHandler/{0}");
-
             app.UseHttpsRedirection();
             app.UseStaticFiles();
 
             app.UseRouting();
+
+            // <<< ADD THIS LINE to enable the response caching middleware >>>
+            // It's generally recommended to place it before middleware that serves responses you want to cache,
+            // like UseAuthentication, UseAuthorization, and UseEndpoints.
+            // Also, place it after UseRouting so it can use routing information if needed for cache variance.
+            app.UseResponseCaching();
 
             app.UseAuthentication();
             app.UseAuthorization();

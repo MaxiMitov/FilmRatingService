@@ -1,13 +1,12 @@
 using FilmRatingService.Interfaces;
 using FilmRatingService.Models;
 
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc; // ResponseCacheAttribute is in this namespace
 using Microsoft.Extensions.Logging;
 
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
-// using Microsoft.AspNetCore.Diagnostics; // Potentially needed if you want to inspect IStatusCodeReExecuteFeature
 
 namespace FilmRatingService.Controllers
 {
@@ -22,6 +21,11 @@ namespace FilmRatingService.Controllers
             _movieService = movieService;
         }
 
+        // MODIFIED: Added [ResponseCache] attribute to the Index action
+        [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "page" })]
+        // Duration is in seconds (e.g., 600 seconds = 10 minutes)
+        // Location = ResponseCacheLocation.Any allows caching by client and proxies
+        // VaryByQueryKeys ensures that different pages of results are cached separately
         public async Task<IActionResult> Index([FromQuery] int page = 1)
         {
             if (page < 1) page = 1;
@@ -53,14 +57,12 @@ namespace FilmRatingService.Controllers
         }
 
         // This Error action is typically for unhandled exceptions (used by UseExceptionHandler)
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)] // This disables caching for the error page
         public IActionResult Error()
         {
-            // Using ErrorViewModel
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier }); // Using ErrorViewModel
         }
 
-        // MODIFIED Search action from previous commit
         [HttpGet]
         public async Task<IActionResult> Search(string query, [FromQuery] int page = 1)
         {
@@ -86,25 +88,17 @@ namespace FilmRatingService.Controllers
             return View("SearchResults", searchViewModel);
         }
 
-        // HttpStatusCodeHandler method with new cases for 401 and 403
         [Route("Home/HttpStatusCodeHandler/{statusCode}")]
         public IActionResult HttpStatusCodeHandler(int statusCode)
         {
-            // var reExecuteFeature = HttpContext.Features.Get<IStatusCodeReExecuteFeature>();
-            // _logger.LogWarning($"Error {statusCode} for {reExecuteFeature?.OriginalPath} {reExecuteFeature?.OriginalQueryString}");
-
             switch (statusCode)
             {
-                // <<< ADDED/MODIFIED THESE CASES >>>
                 case 401:
                     ViewData["ErrorMessage"] = "You are not authorized to access this resource. Please log in.";
-                    // This will look for Views/Home/Unauthorized.cshtml or Views/Shared/Unauthorized.cshtml
                     return View("Unauthorized");
                 case 403:
                     ViewData["ErrorMessage"] = "You do not have permission to access this resource.";
-                    // This will look for Views/Home/Forbidden.cshtml or Views/Shared/Forbidden.cshtml
                     return View("Forbidden");
-                // <<< END OF ADDED/MODIFIED CASES >>>
                 case 404:
                     ViewData["ErrorMessage"] = "Sorry, the page you requested could not be found.";
                     return View("NotFound");
