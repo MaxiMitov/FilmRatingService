@@ -1,0 +1,91 @@
+﻿@model IEnumerable<FilmRatingService.Models.UserReview>
+@* This view expects a collection of UserReview objects *@
+
+@{
+    ViewData["Title"] = "All User Reviews";
+    // You can set a specific layout for the Admin area in Areas/Admin/Views/_ViewStart.cshtml
+    // For example: Layout = "_AdminLayout";
+    // If not set, it will use the default _Layout.cshtml from /Views/Shared/
+}
+
+<div class="container mt-4">
+    <h1 class="mb-4">Manage All User Reviews</h1>
+
+    @if (Model != null && Model.Any())
+    {
+        <p>Total reviews found: @Model.Count()</p>
+        <table class="table table-striped table-bordered table-hover">
+            <thead class="thead-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Movie ID</th>
+                    <th>User</th>
+                    <th>Rating (1-10)</th>
+                    <th>Review Text (Snippet)</th>
+                    <th>Date</th>
+                    <th>Actions</th> @* Placeholder for future actions *@
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var review in Model)
+                {
+                    <tr>
+                        <td>@review.Id</td>
+                        <td>
+                            <a asp-controller="Home" asp-action="Details" asp-area="" asp-route-id="@review.MovieId" title="View Movie Details">
+                                @review.MovieId
+                            </a>
+                        </td>
+                        <td>
+                            @* Display the User's custom Name property if available, otherwise UserName (email) *@
+                            @(review.User != null ? (!string.IsNullOrEmpty(review.User.Name) ? review.User.Name : review.User.UserName) : "N/A")
+                        </td>
+                        <td>@review.Rating</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(review.ReviewText))
+                            {
+                                <span>@(review.ReviewText.Length > 100 ? review.ReviewText.Substring(0, 100) + "..." : review.ReviewText)</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted"><em>No text provided</em></span>
+                            }
+                        </td>
+                        <td>@review.ReviewDate.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>
+                            @* Placeholder for future action links *@
+                            @* <a asp-action="ReviewDetails" asp-route-id="@review.Id" class="btn btn-sm btn-info">Details</a> *@
+                            @* <a asp-action="DeleteReview" asp-route-id="@review.Id" class="btn btn-sm btn-danger">Delete</a> *@
+                            View | Delete (Future)
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <div class="alert alert-info" role="alert">
+            No user reviews found in the system yet.
+        </div>
+    }
+</div>
+
+@* You can reuse or adapt the styles from Areas/Admin/Views/Users/Index.cshtml or move them to a common admin CSS file *@
+<style>
+    .thead-dark th {
+        background-color: #343a40; /* Bootstrap dark header color */
+        color: white;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #f2f2f2; /* Light grey hover for default theme */
+        /* For dark theme:
+            background-color: #3a3a3a;
+            color: #ffffff; */
+    }
+
+    .text-muted {
+        font-style: italic;
+    }
+</style>
