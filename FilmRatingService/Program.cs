@@ -28,7 +28,7 @@ namespace FilmRatingService
 
             builder.Services.AddHttpClient("TMDB", client =>
             {
-                client.BaseAddress = new Uri("https.api.themoviedb.org/3/");
+                client.BaseAddress = new Uri("https://api.themoviedb.org/3/"); // Corrected line
             });
 
             builder.Services.AddScoped<IMovieService, MovieService>();

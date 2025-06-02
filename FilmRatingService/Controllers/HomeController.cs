@@ -1,11 +1,11 @@
 using FilmRatingService.Interfaces;
-using FilmRatingService.Models; // Ensure ErrorViewModel and NotFound view can be found if specific models are used
+using FilmRatingService.Models;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
 using System.Collections.Generic;
-using System.Diagnostics; // Required for Activity
+using System.Diagnostics;
 using System.Threading.Tasks;
 // using Microsoft.AspNetCore.Diagnostics; // Potentially needed if you want to inspect IStatusCodeReExecuteFeature
 
@@ -86,37 +86,31 @@ namespace FilmRatingService.Controllers
             return View("SearchResults", searchViewModel);
         }
 
-        // <<< NEW ACTION METHOD FOR HANDLING HTTP STATUS CODES >>>
-        [Route("Home/HttpStatusCodeHandler/{statusCode}")] // Explicit route definition
+        // HttpStatusCodeHandler method with new cases for 401 and 403
+        [Route("Home/HttpStatusCodeHandler/{statusCode}")]
         public IActionResult HttpStatusCodeHandler(int statusCode)
         {
-            // You can get the original path like this if needed for logging or display:
             // var reExecuteFeature = HttpContext.Features.Get<IStatusCodeReExecuteFeature>();
             // _logger.LogWarning($"Error {statusCode} for {reExecuteFeature?.OriginalPath} {reExecuteFeature?.OriginalQueryString}");
 
             switch (statusCode)
             {
+                // <<< ADDED/MODIFIED THESE CASES >>>
+                case 401:
+                    ViewData["ErrorMessage"] = "You are not authorized to access this resource. Please log in.";
+                    // This will look for Views/Home/Unauthorized.cshtml or Views/Shared/Unauthorized.cshtml
+                    return View("Unauthorized");
+                case 403:
+                    ViewData["ErrorMessage"] = "You do not have permission to access this resource.";
+                    // This will look for Views/Home/Forbidden.cshtml or Views/Shared/Forbidden.cshtml
+                    return View("Forbidden");
+                // <<< END OF ADDED/MODIFIED CASES >>>
                 case 404:
                     ViewData["ErrorMessage"] = "Sorry, the page you requested could not be found.";
-                    // This will look for Views/Home/NotFound.cshtml or Views/Shared/NotFound.cshtml
                     return View("NotFound");
-
-                // Example: Handling other specific errors if you create views for them
-                // case 401:
-                //    ViewData["ErrorMessage"] = "You are not authorized.";
-                //    return View("Unauthorized");
-                // case 403:
-                //    ViewData["ErrorMessage"] = "You are forbidden from accessing this resource.";
-                //    return View("Forbidden");
-
                 default:
-                    // For any other status code handled by UseStatusCodePagesWithReExecute
-                    // You might want a generic HTTP error view here.
-                    // For now, we'll try to use the existing Error view,
-                    // but ideally, this would be a simpler view that just shows the status code and a message.
-                    ViewData["StatusCode"] = statusCode; // You can pass the status code to the view
+                    ViewData["StatusCode"] = statusCode;
                     ViewData["ErrorMessage"] = $"An unexpected error occurred (Status Code: {statusCode}). Please try again later or contact support.";
-                    // Using the existing ErrorViewModel; RequestId might not be relevant here but won't harm.
                     return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
         }

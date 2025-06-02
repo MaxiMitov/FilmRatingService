@@ -1,0 +1,29 @@
+﻿@{
+    ViewData["Title"] = "Unauthorized (401)";
+}
+
+<div class="container text-center mt-5">
+    <div style="font-size: 6rem; color: #ffc107;">🚫</div>
+    <h1 class="display-4 mt-3">Access Denied - Unauthorized</h1>
+    <p class="lead">
+        Sorry, you are not authorized to access this page.
+        This usually means you need to log in to proceed.
+    </p>
+    <p class="mt-4">
+        Please <a asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@Context.Request.Path" class="btn btn-warning btn-lg">Login</a> to continue, or go back to the
+        <a asp-controller="Home" asp-action="Index" class="btn btn-primary btn-lg">Homepage</a>.
+    </p>
+    <hr class="my-4">
+    <p class="text-muted">
+        If you believe you should have access, please ensure you are logged in with the correct account. <br />
+        Error Code: 401
+    </p>
+</div>
+
+@* You can include or link to similar styles as your NotFound.cshtml for consistency *@
+<style>
+    .container {
+        max-width: 700px;
+    }
+    /* Styles from NotFound.cshtml could be refactored into site.css */
+</style>
