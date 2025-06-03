@@ -11,7 +11,8 @@ using FilmRatingService.Services; // Your MovieService namespace
 using FilmRatingService.Interfaces; // Your IMovieService namespace
 using FilmRatingService.Models;   // Your Models namespace
 using System.Text.Json;       // For serializing test data
-using System; // Required for Func
+using System;                 // Required for Func
+using System.Collections.Generic; // Required for List
 
 namespace FilmRatingService.Tests
 {
@@ -69,7 +70,7 @@ namespace FilmRatingService.Tests
             var httpResponseMessage = new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(apiResponseJson)
+                Content = new StringContent(apiResponseJson, System.Text.Encoding.UTF8, "application/json")
             };
 
             _mockHttpMessageHandler
@@ -103,18 +104,14 @@ namespace FilmRatingService.Tests
             );
         }
 
-        // <<< NEW TEST METHOD ADDED HERE >>>
         [Test]
         public async Task GetMovieDetailsAsync_WhenApiCallFails_ReturnsNull()
         {
             // Arrange
-            var movieId = 999; // An ID that we'll simulate as not found or causing an error
-
-            // Simulate an unsuccessful API response (e.g., NotFound)
+            var movieId = 999;
             var httpResponseMessage = new HttpResponseMessage
             {
-                StatusCode = HttpStatusCode.NotFound // Could also be InternalServerError, etc.
-                // No content needed, or an empty StringContent if the API returns a body on error
+                StatusCode = HttpStatusCode.NotFound
             };
 
             _mockHttpMessageHandler
@@ -123,7 +120,7 @@ namespace FilmRatingService.Tests
                     "SendAsync",
                     ItExpr.Is<HttpRequestMessage>(req =>
                         req.Method == HttpMethod.Get &&
-                        req.RequestUri.ToString().Contains($"movie/{movieId}")), // Check only relevant part of URL
+                        req.RequestUri.ToString().Contains($"movie/{movieId}")),
                     ItExpr.IsAny<CancellationToken>()
                 )
                 .ReturnsAsync(httpResponseMessage);
@@ -133,25 +130,216 @@ namespace FilmRatingService.Tests
 
             // Assert
             Assert.That(result, Is.Null, "Service should return null when API call fails or movie is not found.");
-
-            // Optional: Verify that an error was logged.
-            // Your MovieService's GetMovieDetailsAsync logs an error in the catch block.
-            // This verification ensures that your error handling path is being invoked.
             _mockLogger.Verify(
                 x => x.Log(
-                    It.Is<LogLevel>(l => l == LogLevel.Error), // Check that it's an Error log
-                    It.IsAny<EventId>(), // We don't care about the specific EventId
-                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains($"Error fetching movie details for ID {movieId}")), // Check if the log message contains the expected text
-                    It.IsAny<HttpRequestException>(), // Expect an HttpRequestException to be logged
-                    It.IsAny<Func<It.IsAnyType, Exception, string>>()), // We don't care about the formatter
-                Times.Once // Ensure it was logged exactly once
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains($"Error fetching movie details for ID {movieId}")),
+                    It.IsAny<HttpRequestException>(),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once
             );
         }
 
-        // We will add more tests here for:
-        // - GetPopularMoviesAsync_WhenApiCallIsSuccessful_ReturnsMovieListResponse
-        // - GetPopularMoviesAsync_WhenApiCallFails_ReturnsEmptyOrNull
-        // - SearchMoviesAsync_WithValidQuery_ReturnsMovieListResponse
-        // etc.
+        [Test]
+        public async Task GetPopularMoviesAsync_WhenApiCallIsSuccessful_ReturnsMovieListResponse()
+        {
+            // Arrange
+            var pageNumber = 1;
+            var expectedResponse = new MovieListResponse
+            {
+                Page = pageNumber,
+                Results = new List<MovieDetails>
+                {
+                    new MovieDetails { Id = 1, Title = "Popular Movie 1" },
+                    new MovieDetails { Id = 2, Title = "Popular Movie 2" }
+                },
+                TotalPages = 5,
+                TotalResults = 100
+            };
+            var apiResponseJson = JsonSerializer.Serialize(expectedResponse);
+
+            var httpResponseMessage = new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(apiResponseJson, System.Text.Encoding.UTF8, "application/json")
+            };
+
+            _mockHttpMessageHandler
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.Is<HttpRequestMessage>(req =>
+                        req.Method == HttpMethod.Get &&
+                        req.RequestUri.ToString().Contains($"movie/popular?api_key=test_api_key&page={pageNumber}")),
+                    ItExpr.IsAny<CancellationToken>()
+                )
+                .ReturnsAsync(httpResponseMessage)
+                .Verifiable(); // Mark as verifiable
+
+            // Act
+            var result = await _movieService.GetPopularMoviesAsync(pageNumber);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Page, Is.EqualTo(expectedResponse.Page));
+            Assert.That(result.Results, Is.Not.Null);
+            Assert.That(result.Results.Count, Is.EqualTo(expectedResponse.Results.Count));
+            if (result.Results.Any())
+            {
+                Assert.That(result.Results[0].Title, Is.EqualTo(expectedResponse.Results[0].Title));
+            }
+            Assert.That(result.TotalPages, Is.EqualTo(expectedResponse.TotalPages));
+
+            _mockHttpMessageHandler.Verify(); // <<< CORRECTED THIS LINE (line 196 in your error)
+        }
+
+        [Test]
+        public async Task GetPopularMoviesAsync_WhenApiCallFails_ReturnsEmptyResponseWithCorrectPage()
+        {
+            // Arrange
+            var pageNumber = 1;
+            var httpResponseMessage = new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.InternalServerError
+            };
+
+            _mockHttpMessageHandler
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.Is<HttpRequestMessage>(req => req.RequestUri.ToString().Contains("movie/popular")),
+                    ItExpr.IsAny<CancellationToken>()
+                )
+                .ReturnsAsync(httpResponseMessage);
+
+            // Act
+            var result = await _movieService.GetPopularMoviesAsync(pageNumber);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Results, Is.Not.Null.And.Empty);
+            Assert.That(result.Page, Is.EqualTo(pageNumber));
+            Assert.That(result.TotalPages, Is.EqualTo(0));
+
+            _mockLogger.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains($"Error fetching popular movies for page {pageNumber}")),
+                    It.IsAny<HttpRequestException>(),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once
+            );
+        }
+
+        [Test]
+        public async Task SearchMoviesAsync_WithValidQueryAndPage_ReturnsMovieListResponse()
+        {
+            // Arrange
+            var query = "TestQuery";
+            var pageNumber = 2;
+            var expectedResponse = new MovieListResponse
+            {
+                Page = pageNumber,
+                Results = new List<MovieDetails> { new MovieDetails { Id = 101, Title = "Found Movie Alpha" } },
+                TotalPages = 3,
+                TotalResults = 30
+            };
+            var apiResponseJson = JsonSerializer.Serialize(expectedResponse);
+
+            var httpResponseMessage = new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(apiResponseJson, System.Text.Encoding.UTF8, "application/json")
+            };
+
+            _mockHttpMessageHandler
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.Is<HttpRequestMessage>(req =>
+                        req.Method == HttpMethod.Get &&
+                        req.RequestUri.ToString().Contains($"search/movie?api_key=test_api_key&query={query}&page={pageNumber}")),
+                    ItExpr.IsAny<CancellationToken>()
+                )
+                .ReturnsAsync(httpResponseMessage)
+                .Verifiable();
+
+            // Act
+            var result = await _movieService.SearchMoviesAsync(query, pageNumber);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Page, Is.EqualTo(expectedResponse.Page));
+            Assert.That(result.Results, Is.Not.Null.And.Not.Empty);
+            Assert.That(result.Results[0].Title, Is.EqualTo(expectedResponse.Results[0].Title));
+
+            _mockHttpMessageHandler.Verify(); // <<< CORRECTED THIS LINE (line 281 in your error)
+        }
+
+        [Test]
+        public async Task SearchMoviesAsync_WithEmptyQuery_ReturnsEmptyResponseAndDoesNotCallApi()
+        {
+            // Arrange
+            var query = "";
+            var pageNumber = 1;
+
+            // Act
+            var result = await _movieService.SearchMoviesAsync(query, pageNumber);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Results, Is.Not.Null.And.Empty);
+            Assert.That(result.Page, Is.EqualTo(1));
+            Assert.That(result.TotalPages, Is.EqualTo(0));
+
+            _mockHttpMessageHandler.Protected().Verify(
+                "SendAsync",
+                Times.Never(),
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>()
+            );
+        }
+
+        [Test]
+        public async Task SearchMoviesAsync_WhenApiCallFails_ReturnsEmptyResponseWithCorrectPage()
+        {
+            // Arrange
+            var query = "ValidQuery";
+            var pageNumber = 1;
+            var httpResponseMessage = new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.BadGateway
+            };
+
+            _mockHttpMessageHandler
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.Is<HttpRequestMessage>(req => req.RequestUri.ToString().Contains($"search/movie?api_key=test_api_key&query={query}&page={pageNumber}")),
+                    ItExpr.IsAny<CancellationToken>()
+                )
+                .ReturnsAsync(httpResponseMessage);
+
+            // Act
+            var result = await _movieService.SearchMoviesAsync(query, pageNumber);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Results, Is.Not.Null.And.Empty);
+            Assert.That(result.Page, Is.EqualTo(pageNumber));
+            Assert.That(result.TotalPages, Is.EqualTo(0));
+
+            _mockLogger.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains($"Error searching movies with query '{query}' for page {pageNumber}")),
+                    It.IsAny<HttpRequestException>(),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once
+            );
+        }
     }
 }
