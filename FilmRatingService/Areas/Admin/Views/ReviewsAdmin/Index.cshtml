@@ -11,6 +11,22 @@
 <div class="container mt-4">
     <h1 class="mb-4">Manage All User Reviews</h1>
 
+    @* Display TempData messages for success or error after delete *@
+    @if (TempData["StatusMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["StatusMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
     @if (Model != null && Model.Any())
     {
         <p>Total reviews found: @Model.Count()</p>
@@ -23,7 +39,7 @@
                     <th>Rating (1-10)</th>
                     <th>Review Text (Snippet)</th>
                     <th>Date</th>
-                    <th>Actions</th> @* Placeholder for future actions *@
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -37,7 +53,6 @@
                             </a>
                         </td>
                         <td>
-                            @* Display the User's custom Name property if available, otherwise UserName (email) *@
                             @(review.User != null ? (!string.IsNullOrEmpty(review.User.Name) ? review.User.Name : review.User.UserName) : "N/A")
                         </td>
                         <td>@review.Rating</td>
@@ -53,10 +68,18 @@
                         </td>
                         <td>@review.ReviewDate.ToString("yyyy-MM-dd HH:mm")</td>
                         <td>
-                            @* Placeholder for future action links *@
-                            @* <a asp-action="ReviewDetails" asp-route-id="@review.Id" class="btn btn-sm btn-info">Details</a> *@
-                            @* <a asp-action="DeleteReview" asp-route-id="@review.Id" class="btn btn-sm btn-danger">Delete</a> *@
-                            View | Delete (Future)
+                            @* This code should be inside your @foreach (var review in Model) loop, in the "Actions" table cell <td> *@
+
+                            <form action="/Admin/ReviewsAdmin/Delete/@review.Id" method="post" class="d-inline">
+
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-danger"
+                                        onclick="return confirm('Are you sure you want to delete this review (ID: @review.Id)? This action cannot be undone.');">
+                                    Delete
+                                </button>
+                            </form>
+                            @* You can add other action links here later, e.g., for viewing full details in admin *@
+                            @* <a asp-action="ReviewDetails" asp-route-id="@review.Id" class="btn btn-sm btn-info ms-1">Details</a> *@
                         </td>
                     </tr>
                 }
@@ -71,7 +94,7 @@
     }
 </div>
 
-@* You can reuse or adapt the styles from Areas/Admin/Views/Users/Index.cshtml or move them to a common admin CSS file *@
+@* Your existing styles can remain here, or be moved to a shared admin CSS file *@
 <style>
     .thead-dark th {
         background-color: #343a40; /* Bootstrap dark header color */
@@ -81,11 +104,19 @@
     .table-hover tbody tr:hover {
         background-color: #f2f2f2; /* Light grey hover for default theme */
         /* For dark theme:
-            background-color: #3a3a3a;
-            color: #ffffff; */
+                background-color: #3a3a3a;
+                color: #ffffff; */
     }
 
     .text-muted {
         font-style: italic;
+    }
+
+    .d-inline { /* Helper class to keep form from taking full width if needed */
+        display: inline-block;
+    }
+
+    .alert .btn-close { /* Ensure close button on alerts is visible on dark backgrounds */
+        filter: invert(1) grayscale(100%) brightness(200%); /* Basic white close button */
     }
 </style>

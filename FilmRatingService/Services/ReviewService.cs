@@ -56,10 +56,10 @@ namespace FilmRatingService.Services
             try
             {
                 return await _context.UserReviews
-                                      .Include(r => r.User)
-                                      .Where(r => r.MovieId == movieId)
-                                      .OrderByDescending(r => r.ReviewDate)
-                                      .ToListAsync();
+                                     .Include(r => r.User)
+                                     .Where(r => r.MovieId == movieId)
+                                     .OrderByDescending(r => r.ReviewDate)
+                                     .ToListAsync();
             }
             catch (Exception ex)
             {
@@ -68,22 +68,72 @@ namespace FilmRatingService.Services
             }
         }
 
-        // <<< ADD THIS NEW METHOD IMPLEMENTATION >>>
         public async Task<IEnumerable<UserReview>> GetAllReviewsAsync()
         {
             try
             {
-                // Retrieve all reviews, include User details, and order by date.
-                // You might want to add paging here if the number of reviews can grow very large.
                 return await _context.UserReviews
-                                      .Include(r => r.User) // Eagerly load the related ApplicationUser
-                                      .OrderByDescending(r => r.ReviewDate)
-                                      .ToListAsync();
+                                     .Include(r => r.User)
+                                     .OrderByDescending(r => r.ReviewDate)
+                                     .ToListAsync();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching all reviews.");
-                return new List<UserReview>(); // Return empty list on error
+                return new List<UserReview>();
+            }
+        }
+
+        // <<< NEW METHOD IMPLEMENTATION: GetReviewByIdAsync >>>
+        public async Task<UserReview> GetReviewByIdAsync(int reviewId)
+        {
+            if (reviewId <= 0)
+            {
+                _logger.LogWarning("GetReviewByIdAsync called with invalid reviewId: {ReviewId}", reviewId);
+                return null;
+            }
+            try
+            {
+                // Find the review by its primary key.
+                // Include User if you need user details for a confirmation page, for example.
+                return await _context.UserReviews
+                                     .Include(r => r.User)
+                                     .FirstOrDefaultAsync(r => r.Id == reviewId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching review by Id: {ReviewId}", reviewId);
+                return null;
+            }
+        }
+
+        // <<< NEW METHOD IMPLEMENTATION: DeleteReviewAsync >>>
+        public async Task<bool> DeleteReviewAsync(int reviewId)
+        {
+            if (reviewId <= 0)
+            {
+                _logger.LogWarning("DeleteReviewAsync called with invalid reviewId: {ReviewId}", reviewId);
+                return false;
+            }
+
+            try
+            {
+                var reviewToDelete = await _context.UserReviews.FindAsync(reviewId);
+                if (reviewToDelete == null)
+                {
+                    _logger.LogWarning("Review with Id: {ReviewId} not found for deletion.", reviewId);
+                    return false; // Review not found
+                }
+
+                _context.UserReviews.Remove(reviewToDelete);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Successfully deleted review with Id: {ReviewId}", reviewId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting review with Id: {ReviewId}", reviewId);
+                return false; // Indicate failure
             }
         }
     }

@@ -9,7 +9,8 @@ namespace FilmRatingService.Interfaces
     {
         Task AddReviewAsync(UserReview review);
         Task<IEnumerable<UserReview>> GetReviewsForMovieAsync(int movieId);
-        Task<IEnumerable<UserReview>> GetAllReviewsAsync(); // <<< ADD THIS NEW METHOD
-        // We can add methods for Update, Delete, GetReviewById later
+        Task<IEnumerable<UserReview>> GetAllReviewsAsync();
+        Task<UserReview> GetReviewByIdAsync(int reviewId); // <<< ADD THIS
+        Task<bool> DeleteReviewAsync(int reviewId);      // <<< ADD THIS
     }
 }
