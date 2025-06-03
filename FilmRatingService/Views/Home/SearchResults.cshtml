@@ -13,23 +13,31 @@
             </form>
         </div>
         <div class="user-actions">
-            @* You might want to update these to use asp-page tag helpers like in your Index.cshtml for consistency *@
-            @* <a asp-area="Identity" asp-page="/Account/Login">Sign In</a> | <a asp-area="Identity" asp-page="/Account/Register">Register</a> *@
-            <a href="#">Sign In</a> | <a href="#">Register</a>
+            <partial name="_LoginPartial" /> @* Assuming _LoginPartial is set up for dynamic login/logout links *@
         </div>
     </div>
 </div>
 
 <style>
-    /* Your existing styles are here - I'm omitting them for brevity in this code block */
+    /* Your existing styles are here - I'm omitting them for brevity */
     /* but they should remain in your file. */
+    /* Example: ensure linked images in cards have a hover effect */
+    .movie-card a img:hover {
+        opacity: 0.85;
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .movie-card h4 a:hover {
+        color: #ffd700 !important; /* Lighter yellow on hover for title link, !important to override if needed */
+    }
+    /* Your existing styles from the provided file */
     .imdb-header {
         background-color: #1a1a1a;
         padding: 12px 20px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 2px 5px rgba(0,0,0,.4);
         position: sticky;
         top: 0;
-        z-index: 1000;
+        z-index: 1000
     }
 
     .imdb-header-content {
@@ -37,32 +45,32 @@
         align-items: center;
         justify-content: space-between;
         max-width: 1200px;
-        margin: 0 auto;
+        margin: 0 auto
     }
 
     .logo {
         font-size: 26px;
-        font-weight: bold;
-        color: #f5c518;
+        font-weight: 700;
+        color: #f5c518
     }
 
     .search-bar {
         flex-grow: 1;
-        margin: 0 20px;
+        margin: 0 20px
     }
 
         .search-bar form {
             display: flex;
-            width: 100%;
+            width: 100%
         }
 
-        .search-bar input[type="text"] {
+        .search-bar input[type=text] {
             flex-grow: 1;
             padding: 10px;
             background-color: #333;
             border: none;
-            color: white;
-            border-radius: 5px 0 0 5px;
+            color: #fff;
+            border-radius: 5px 0 0 5px
         }
 
         .search-bar button {
@@ -70,141 +78,139 @@
             background-color: #f5c518;
             border: none;
             color: #000;
-            font-weight: bold;
+            font-weight: 700;
             border-radius: 0 5px 5px 0;
-            cursor: pointer;
+            cursor: pointer
         }
 
     .user-actions a {
-        color: white;
+        color: #fff;
         text-decoration: none;
-        margin-left: 15px;
+        margin-left: 15px
     }
 
         .user-actions a:hover {
-            text-decoration: underline;
+            text-decoration: underline
         }
 
     body {
         background-color: #181818;
         color: #e0e0e0;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: Segoe UI,Tahoma,Geneva,Verdana,sans-serif;
         margin: 0;
-        padding: 0;
+        padding: 0
     }
 
     .container {
         max-width: 1200px;
         margin: 30px auto;
-        padding: 0 20px;
+        padding: 0 20px
     }
 
-    h3.search-title { /* Added class for specific styling */
+    h3.search-title {
         color: #f5c518;
         font-size: 28px;
-        margin-bottom: 10px;
+        margin-bottom: 10px
     }
 
     .search-summary {
         color: #aaa;
         margin-bottom: 25px;
-        font-size: 0.9em;
+        font-size: .9em
     }
 
     .movie-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 20px;
+        grid-template-columns: repeat(auto-fill,minmax(220px,1fr));
+        gap: 20px
     }
 
     .movie-card {
         background-color: #212121;
         border-radius: 8px;
         overflow: hidden;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-        transition: transform 0.2s;
-        display: flex; /* Added for flex layout */
-        flex-direction: column; /* Added for flex layout */
+        box-shadow: 0 2px 6px rgba(0,0,0,.4);
+        transition: transform .2s;
+        display: flex;
+        flex-direction: column
     }
 
         .movie-card:hover {
-            transform: scale(1.05);
+            transform: scale(1.05)
         }
 
         .movie-card img {
             width: 100%;
-            height: 330px; /* Adjusted height for proportion */
+            height: 330px;
             object-fit: cover;
-            display: block;
+            display: block
         }
 
         .movie-card .info {
             padding: 15px;
-            flex-grow: 1; /* Added for flex layout */
-            display: flex; /* Added for flex layout */
-            flex-direction: column; /* Added for flex layout */
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column
         }
 
         .movie-card h4 {
             margin: 0 0 8px;
             font-size: 18px;
-            font-weight: bold;
+            font-weight: 700;
             color: #fff;
             white-space: nowrap;
             overflow: hidden;
-            text-overflow: ellipsis;
+            text-overflow: ellipsis
         }
 
-        .movie-card p { /* For genre/year */
+        .movie-card p {
             color: #aaa;
             font-size: 14px;
-            margin-bottom: 5px;
+            margin-bottom: 5px
         }
 
-        .movie-card .info .card-rating { /* Ensure rating is at the bottom */
-            margin-top: auto;
+        .movie-card .info .card-rating {
+            margin-top: auto
         }
-
 
     .card-rating {
         color: #f5c518;
         font-size: 14px;
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 5px
     }
 
     .no-results {
         color: #ccc;
-        font-size: 18px;
+        font-size: 18px
     }
 
-    /* Pagination Styles (Copied from Index.cshtml, ensure consistency or move to site.css) */
     .pagination {
-        margin-top: 30px;
+        margin-top: 30px
     }
 
     .page-item.disabled .page-link {
         background-color: #333;
         border-color: #444;
-        color: #6c757d;
+        color: #6c757d
     }
 
     .page-item .page-link {
         background-color: #212121;
         border-color: #444;
-        color: #f5c518;
+        color: #f5c518
     }
 
         .page-item .page-link:hover {
             background-color: #333;
-            color: #ffd700;
+            color: #ffd700
         }
 
     .page-item.active .page-link {
         background-color: #f5c518;
         border-color: #f5c518;
-        color: #000;
+        color: #000
     }
 </style>
 
@@ -228,16 +234,24 @@
             @foreach (var movie in Model.Results)
             {
                 <div class="movie-card">
-                    @if (!string.IsNullOrEmpty(movie.PosterPath))
-                    {
-                        <img src="https://image.tmdb.org/t/p/w300/@movie.PosterPath" alt="@movie.Title" />
-                    }
-                    else
-                    {
-                        <img src="/images/default-thumbnail.png" alt="No Poster Available" /> @* Ensure you have this image *@
-                    }
+                    <a asp-controller="Home" asp-action="Details" asp-route-id="@movie.Id">
+                        @* <<< WRAP IMAGE WITH LINK >>> *@
+                        @if (!string.IsNullOrEmpty(movie.PosterPath))
+                        {
+                            <img src="https://image.tmdb.org/t/p/w300/@movie.PosterPath" alt="@movie.Title" />
+                        }
+                        else
+                        {
+                            <img src="/images/default-thumbnail.png" alt="No Poster Available" />
+                        }
+                    </a>
                     <div class="info">
-                        <h4>@movie.Title</h4>
+                        <h4>
+                            <a asp-controller="Home" asp-action="Details" asp-route-id="@movie.Id" style="color: inherit; text-decoration: none;">
+                                @* <<< WRAP TITLE WITH LINK >>> *@
+                                @movie.Title
+                            </a>
+                        </h4>
                         <p>Genre · Year</p> @* Consider making this dynamic *@
                         <div class="card-rating">⭐ @movie.VoteAverage.ToString("0.0")</div>
                     </div>
@@ -262,9 +276,6 @@
                             <span class="page-link">Previous</span>
                         </li>
                     }
-
-                    @* Optional: Add page number links here - remember asp-route-query="@Model.Query" *@
-
                     @if (Model.HasNextPage)
                     {
                         <li class="page-item">
@@ -282,11 +293,11 @@
             </nav>
         }
     }
-    else if (!string.IsNullOrEmpty(Model.Query)) // Only show "no results for query" if a query was actually made
+    else if (!string.IsNullOrEmpty(Model.Query))
     {
         <p class="no-results">No movies found matching your query "@Model.Query".</p>
     }
-    else // This case is if the page is loaded without a query (e.g., direct navigation to /Home/Search)
+    else
     {
         <p class="no-results">Please enter a search term in the bar above.</p>
     }

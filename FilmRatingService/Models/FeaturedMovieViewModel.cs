@@ -1,9 +1,12 @@
 ﻿using System.Collections.Generic;
 
+using FilmRatingService.Models; // Required if MovieDetails is in this namespace, which it should be
+
 namespace FilmRatingService.Models
 {
     public class FeaturedMovieViewModel
     {
+        public int Id { get; set; } // <<< ADD THIS PROPERTY for the featured movie's ID
         public string Title { get; set; }
         public string Description { get; set; }
         public string CoverImageUrl { get; set; }

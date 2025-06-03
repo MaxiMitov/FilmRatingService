@@ -1,5 +1,5 @@
 using FilmRatingService.Interfaces; // Ensure IReviewService is included via this or another using
-using FilmRatingService.Models;   // Ensure MovieDetailsPageViewModel is included
+using FilmRatingService.Models;   // Ensure MovieDetailsPageViewModel, FeaturedMovieViewModel etc. are included
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -14,16 +14,16 @@ namespace FilmRatingService.Controllers
     {
         private readonly ILogger<HomeController> _logger;
         private readonly IMovieService _movieService;
-        private readonly IReviewService _reviewService; // <<< ADD IReviewService INJECTION
+        private readonly IReviewService _reviewService;
 
         public HomeController(
             ILogger<HomeController> logger,
             IMovieService movieService,
-            IReviewService reviewService) // <<< ADD IReviewService to constructor
+            IReviewService reviewService)
         {
             _logger = logger;
             _movieService = movieService;
-            _reviewService = reviewService; // <<< ASSIGN IReviewService
+            _reviewService = reviewService;
         }
 
         [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "page" })]
@@ -34,8 +34,10 @@ namespace FilmRatingService.Controllers
             MovieDetails featuredMovie = await _movieService.GetMovieDetailsAsync(featuredMovieId);
             MovieListResponse popularMoviesResponse = await _movieService.GetPopularMoviesAsync(page);
 
-            var viewModel = new FeaturedMovieViewModel
+            var viewModel = new FeaturedMovieViewModel // Using FeaturedMovieViewModel
             {
+                // <<< MODIFIED: Ensure the Id of the featured movie is populated >>>
+                Id = featuredMovie?.Id ?? 0, // Or you could use featuredMovieId if featuredMovie might be null and you still want a valid ID for some reason (though if featuredMovie is null, other things might break)
                 Title = featuredMovie?.Title ?? "Featured Movie Title",
                 Description = featuredMovie?.Overview ?? "Featured Movie Description",
                 CoverImageUrl = featuredMovie?.PosterPath != null ? $"https://image.tmdb.org/t/p/w500/{featuredMovie.PosterPath}" : "/images/default-poster.png",
@@ -64,19 +66,15 @@ namespace FilmRatingService.Controllers
                 return RedirectToAction("HttpStatusCodeHandler", new { statusCode = 404 });
             }
 
-            // Fetch reviews for this movie
             var reviews = await _reviewService.GetReviewsForMovieAsync(id);
 
-            // Create the new ViewModel
             var viewModel = new MovieDetailsPageViewModel
             {
                 Movie = movieDetails,
                 Reviews = reviews ?? new List<UserReview>()
-                // If you wanted the review form on this page:
-                // NewReview = new AddReviewViewModel { MovieId = id, MovieTitle = movieDetails.Title } 
             };
 
-            return View(viewModel); // Pass MovieDetailsPageViewModel to the Details.cshtml view
+            return View(viewModel);
         }
 
 
@@ -88,7 +86,7 @@ namespace FilmRatingService.Controllers
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier }); // Using ErrorViewModel
         }
 
         [HttpGet]
