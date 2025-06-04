@@ -4,9 +4,7 @@
 }
 
 <style>
-    /* Styles from your previous Details.cshtml (movie-details-container, etc.) */
-    /* I'm including them here for completeness based on previous versions. */
-    /* Ensure these are adapted or moved to site.css if they become common. */
+    /* Styles from your previous Details.cshtml */
     .movie-details-container {
         max-width: 900px;
         margin: 20px auto;
@@ -62,15 +60,22 @@
     }
 
         .rating-section h3 {
-            margin-bottom: 20px;
+            margin-bottom: 10px; /* Reduced margin for tighter layout */
             color: #f5c518;
+        }
+
+        .rating-section h4 { /* For the AJAX summary heading */
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.25rem; /* Slightly smaller than h3 */
+            color: #e0e0e0;
         }
 
     .add-review-link-container {
         margin-bottom: 20px;
     }
 
-    .btn-add-review { /* Style for the add review button */
+    .btn-add-review {
         background-color: #f5c518;
         color: #000;
         font-weight: bold;
@@ -81,6 +86,34 @@
 
         .btn-add-review:hover {
             background-color: #e4b80f;
+        }
+
+    #movieRatingSummarySection { /* Styling for the AJAX loaded summary */
+        padding: 10px;
+        background-color: #383838;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        border: 1px solid #484848;
+    }
+
+        #movieRatingSummarySection ul {
+            list-style-type: none;
+            padding-left: 0;
+            margin-bottom: 0;
+        }
+
+        #movieRatingSummarySection li {
+            margin-bottom: 5px;
+            font-size: 0.95em;
+        }
+
+        #movieRatingSummarySection .loading-text {
+            color: #aaa;
+        }
+
+        #movieRatingSummarySection .error-text {
+            color: #dc3545;
+            font-style: italic;
         }
 
 
@@ -119,14 +152,13 @@
                 {
                     <p><strong>Average Vote (from TMDB):</strong> @Model.Movie.VoteAverage.ToString("0.0") / 10</p>
                 }
-                @* Add other movie details here as needed *@
             </div>
         </div>
 
         <div class="rating-section">
             <h3>User Reviews & Ratings</h3>
 
-            @if (User.Identity.IsAuthenticated) // Only show "Add Review" link if user is logged in
+            @if (User.Identity.IsAuthenticated)
             {
                 <div class="add-review-link-container">
                     <a asp-controller="Reviews" asp-action="Create" asp-route-movieId="@Model.Movie.Id" class="btn-add-review">
@@ -139,7 +171,12 @@
                 <p><a asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@(Context.Request.Path + Context.Request.QueryString.Value)">Login</a> to write a review.</p>
             }
 
-            @* Render the partial view for displaying reviews *@
+            @* <<< DIV FOR AJAX RATING SUMMARY >>> *@
+            <div id="movieRatingSummarySection">
+                <p class="loading-text">Loading rating summary...</p>
+            </div>
+
+            <h4 style="margin-top: 20px;">All Submitted Reviews:</h4>
             <partial name="/Views/Reviews/_MovieReviewsList.cshtml" model="Model.Reviews" />
         </div>
     }
@@ -149,11 +186,52 @@
     }
 </div>
 
-@* The old AJAX script section can be removed as we are now loading reviews with the page *@
-@* @section Scripts {
-        <script>
-            // Previous AJAX call for dummy ratings is no longer needed here
-            // if reviews are loaded server-side and passed in the ViewModel.
-        </script>
-    }
-*@
+@* <<< SCRIPT SECTION FOR AJAX CALL >>> *@
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            var movieId = @(Model?.Movie?.Id ?? 0);
+
+            if (movieId > 0) {
+                var apiUrl = `/api/Ratings/${movieId}`;
+                var $ratingSummarySection = $("#movieRatingSummarySection");
+
+                // Set initial loading text (it's also in the HTML for non-JS scenarios or slow load)
+                $ratingSummarySection.html('<p class="loading-text">Loading rating summary...</p>');
+
+                $.ajax({
+                    url: apiUrl,
+                    type: "GET",
+                    dataType: "json",
+                    success: function (data) {
+                        // API returns: { movieId, averageRating, totalReviews }
+                        $ratingSummarySection.empty(); // Clear loading text
+
+                        var content = "<h4>Rating Summary (from Users)</h4>";
+                        content += "<ul>";
+                        if (data.totalReviews > 0) {
+                            content += `<li><strong>Average User Rating:</strong> ${data.averageRating.toFixed(1)} / 10</li>`;
+                            content += `<li><strong>Based on:</strong> ${data.totalReviews} review(s)</li>`;
+                        } else {
+                            content += `<li>No user ratings submitted yet for this movie.</li>`;
+                        }
+                        content += "</ul>";
+
+                        $ratingSummarySection.html(content);
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        console.error("Error fetching rating summary:", textStatus, errorThrown);
+                        if (jqXHR.responseText) {
+                             console.error("Response Text:", jqXHR.responseText);
+                        }
+                        $ratingSummarySection.html(`<p class="error-text">Could not load rating summary at this time. (Status: ${jqXHR.status})</p>`);
+                    }
+                });
+            } else {
+                 // If movieId is invalid, clear or update the section appropriately
+                 $("#movieRatingSummarySection").html('<p class="error-text">Rating summary not available: Invalid Movie ID.</p>');
+                 console.warn("Movie ID is invalid or not available for AJAX rating summary call.");
+            }
+        });
+    </script>
+}
