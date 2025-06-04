@@ -1,10 +1,10 @@
-using FilmRatingService.Interfaces; // Ensure IReviewService is included via this or another using
-using FilmRatingService.Models;   // Ensure MovieDetailsPageViewModel, FeaturedMovieViewModel etc. are included
+using FilmRatingService.Interfaces;
+using FilmRatingService.Models;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
-using System.Collections.Generic; // For List
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
@@ -26,7 +26,7 @@ namespace FilmRatingService.Controllers
             _reviewService = reviewService;
         }
 
-        [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "page" })]
+        // [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "page" })] // Temporarily commented out from previous troubleshooting
         public async Task<IActionResult> Index([FromQuery] int page = 1)
         {
             if (page < 1) page = 1;
@@ -36,8 +36,7 @@ namespace FilmRatingService.Controllers
 
             var viewModel = new FeaturedMovieViewModel // Using FeaturedMovieViewModel
             {
-                // <<< MODIFIED: Ensure the Id of the featured movie is populated >>>
-                Id = featuredMovie?.Id ?? 0, // Or you could use featuredMovieId if featuredMovie might be null and you still want a valid ID for some reason (though if featuredMovie is null, other things might break)
+                Id = featuredMovie?.Id ?? 0,
                 Title = featuredMovie?.Title ?? "Featured Movie Title",
                 Description = featuredMovie?.Overview ?? "Featured Movie Description",
                 CoverImageUrl = featuredMovie?.PosterPath != null ? $"https://image.tmdb.org/t/p/w500/{featuredMovie.PosterPath}" : "/images/default-poster.png",
@@ -52,9 +51,11 @@ namespace FilmRatingService.Controllers
             return View(viewModel);
         }
 
-        // MODIFIED Details action
-        public async Task<IActionResult> Details(int id) // 'id' will be the movieId
+        // MODIFIED Details action to include sorting
+        public async Task<IActionResult> Details(int id, [FromQuery] string sortBy = "date_desc") // 'id' is movieId, sortBy for reviews
         {
+            _logger.LogInformation("Details page accessed for movieId: {MovieId}, sortBy: {SortBy}", id, sortBy);
+
             if (id <= 0)
             {
                 return RedirectToAction("HttpStatusCodeHandler", new { statusCode = 400 });
@@ -66,12 +67,18 @@ namespace FilmRatingService.Controllers
                 return RedirectToAction("HttpStatusCodeHandler", new { statusCode = 404 });
             }
 
-            var reviews = await _reviewService.GetReviewsForMovieAsync(id);
+            // Fetch reviews for this movie using the sortBy parameter
+            var reviews = await _reviewService.GetReviewsForMovieAsync(id, sortBy);
 
-            var viewModel = new MovieDetailsPageViewModel
+            // Create the ViewModel and populate sorting parameters for the view
+            var viewModel = new MovieDetailsPageViewModel // Using MovieDetailsPageViewModel
             {
                 Movie = movieDetails,
-                Reviews = reviews ?? new List<UserReview>()
+                Reviews = reviews ?? new List<UserReview>(),
+                CurrentSortOrder = sortBy,
+                // Determine the next sort order for links in the view
+                DateSortParam = sortBy == "date_desc" ? "date_asc" : "date_desc",
+                RatingSortParam = sortBy == "rating_desc" ? "rating_asc" : "rating_desc"
             };
 
             return View(viewModel);
@@ -100,6 +107,7 @@ namespace FilmRatingService.Controllers
                 searchViewModel.Results = new List<MovieDetails>();
                 searchViewModel.TotalPages = 0;
                 searchViewModel.TotalResults = 0;
+                ViewData["ShowFooter"] = false; // Hide footer on empty initial search
                 return View("SearchResults", searchViewModel);
             }
 
@@ -108,6 +116,8 @@ namespace FilmRatingService.Controllers
             searchViewModel.CurrentPage = response?.Page ?? page;
             searchViewModel.TotalPages = response?.TotalPages ?? 0;
             searchViewModel.TotalResults = response?.TotalResults ?? 0;
+
+            ViewData["ShowFooter"] = false; // Hide footer on search results page
             return View("SearchResults", searchViewModel);
         }
 

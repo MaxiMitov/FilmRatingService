@@ -56,18 +56,18 @@
     .rating-section {
         margin-top: 30px;
         padding-top: 20px;
-        border-top: 1px solid #444; /* Separator line */
+        border-top: 1px solid #444;
     }
 
         .rating-section h3 {
-            margin-bottom: 10px; /* Reduced margin for tighter layout */
+            margin-bottom: 10px;
             color: #f5c518;
         }
 
-        .rating-section h4 { /* For the AJAX summary heading */
+        .rating-section h4 {
             margin-top: 0;
             margin-bottom: 10px;
-            font-size: 1.25rem; /* Slightly smaller than h3 */
+            font-size: 1.25rem;
             color: #e0e0e0;
         }
 
@@ -88,7 +88,7 @@
             background-color: #e4b80f;
         }
 
-    #movieRatingSummarySection { /* Styling for the AJAX loaded summary */
+    #movieRatingSummarySection {
         padding: 10px;
         background-color: #383838;
         border-radius: 4px;
@@ -114,6 +114,28 @@
         #movieRatingSummarySection .error-text {
             color: #dc3545;
             font-style: italic;
+        }
+
+    /* Styles for sort links */
+    .sort-options {
+        margin-bottom: 15px;
+        margin-top: 10px;
+    }
+
+        .sort-options a {
+            color: #f5c518;
+            text-decoration: none;
+            margin-right: 15px;
+        }
+
+            .sort-options a:hover {
+                text-decoration: underline;
+                color: #ffd700;
+            }
+
+        .sort-options .active-sort {
+            font-weight: bold;
+            text-decoration: underline;
         }
 
 
@@ -171,12 +193,25 @@
                 <p><a asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@(Context.Request.Path + Context.Request.QueryString.Value)">Login</a> to write a review.</p>
             }
 
-            @* <<< DIV FOR AJAX RATING SUMMARY >>> *@
             <div id="movieRatingSummarySection">
                 <p class="loading-text">Loading rating summary...</p>
             </div>
 
             <h4 style="margin-top: 20px;">All Submitted Reviews:</h4>
+
+            @* <<< ADDED SORTING LINKS/OPTIONS HERE >>> *@
+            <div class="sort-options">
+                <span>Sort by:</span>
+                <a asp-action="Details" asp-route-id="@Model.Movie.Id" asp-route-sortBy="@Model.DateSortParam"
+                   class="@(Model.CurrentSortOrder == "date_desc" || Model.CurrentSortOrder == "date_asc" ? "active-sort" : "")">
+                    Date (@(Model.CurrentSortOrder == "date_desc" ? "Newest First" : (Model.CurrentSortOrder == "date_asc" ? "Oldest First" : "Newest First")))
+                </a> |
+                <a asp-action="Details" asp-route-id="@Model.Movie.Id" asp-route-sortBy="@Model.RatingSortParam"
+                   class="@(Model.CurrentSortOrder == "rating_desc" || Model.CurrentSortOrder == "rating_asc" ? "active-sort" : "")">
+                    Rating (@(Model.CurrentSortOrder == "rating_desc" ? "Highest First" : (Model.CurrentSortOrder == "rating_asc" ? "Lowest First" : "Highest First")))
+                </a>
+            </div>
+
             <partial name="/Views/Reviews/_MovieReviewsList.cshtml" model="Model.Reviews" />
         </div>
     }
@@ -186,7 +221,6 @@
     }
 </div>
 
-@* <<< SCRIPT SECTION FOR AJAX CALL >>> *@
 @section Scripts {
     <script>
         $(document).ready(function () {
@@ -195,8 +229,6 @@
             if (movieId > 0) {
                 var apiUrl = `/api/Ratings/${movieId}`;
                 var $ratingSummarySection = $("#movieRatingSummarySection");
-
-                // Set initial loading text (it's also in the HTML for non-JS scenarios or slow load)
                 $ratingSummarySection.html('<p class="loading-text">Loading rating summary...</p>');
 
                 $.ajax({
@@ -204,11 +236,8 @@
                     type: "GET",
                     dataType: "json",
                     success: function (data) {
-                        // API returns: { movieId, averageRating, totalReviews }
-                        $ratingSummarySection.empty(); // Clear loading text
-
-                        var content = "<h4>Rating Summary (from Users)</h4>";
-                        content += "<ul>";
+                        $ratingSummarySection.empty();
+                        var content = "<h4>Rating Summary (from Users)</h4><ul>";
                         if (data.totalReviews > 0) {
                             content += `<li><strong>Average User Rating:</strong> ${data.averageRating.toFixed(1)} / 10</li>`;
                             content += `<li><strong>Based on:</strong> ${data.totalReviews} review(s)</li>`;
@@ -216,21 +245,17 @@
                             content += `<li>No user ratings submitted yet for this movie.</li>`;
                         }
                         content += "</ul>";
-
                         $ratingSummarySection.html(content);
                     },
                     error: function (jqXHR, textStatus, errorThrown) {
                         console.error("Error fetching rating summary:", textStatus, errorThrown);
-                        if (jqXHR.responseText) {
-                             console.error("Response Text:", jqXHR.responseText);
-                        }
-                        $ratingSummarySection.html(`<p class="error-text">Could not load rating summary at this time. (Status: ${jqXHR.status})</p>`);
+                        if (jqXHR.responseText) { console.error("Response Text:", jqXHR.responseText); }
+                        $ratingSummarySection.html(`<p class="error-text">Could not load rating summary. (Status: ${jqXHR.status})</p>`);
                     }
                 });
             } else {
-                 // If movieId is invalid, clear or update the section appropriately
-                 $("#movieRatingSummarySection").html('<p class="error-text">Rating summary not available: Invalid Movie ID.</p>');
-                 console.warn("Movie ID is invalid or not available for AJAX rating summary call.");
+                $("#movieRatingSummarySection").html('<p class="error-text">Rating summary not available: Invalid Movie ID.</p>');
+                console.warn("Movie ID is invalid or not available for AJAX rating summary call.");
             }
         });
     </script>

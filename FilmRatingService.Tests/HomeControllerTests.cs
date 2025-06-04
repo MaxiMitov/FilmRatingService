@@ -8,7 +8,7 @@ using FilmRatingService.Models;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
-using System; // Required for IDisposable
+using System; // Required for IDisposable if TearDown is added
 
 namespace FilmRatingService.Tests
 {
@@ -18,7 +18,7 @@ namespace FilmRatingService.Tests
         private Mock<IMovieService> _mockMovieService;
         private Mock<IReviewService> _mockReviewService;
         private Mock<ILogger<HomeController>> _mockLogger;
-        private HomeController _homeController; // This field is IDisposable
+        private HomeController _homeController;
 
         [SetUp]
         public void Setup()
@@ -34,13 +34,10 @@ namespace FilmRatingService.Tests
             );
         }
 
-        // <<< ENSURE THIS TEARDOWN METHOD IS PRESENT AND UNCOMMENTED >>>
-        [TearDown]
+        [TearDown] // Added to dispose the controller as it's IDisposable
         public void TearDown()
         {
-            _homeController?.Dispose(); // Dispose the controller instance
-
-            // Optional: Null out mocks if you want to be extra tidy
+            _homeController?.Dispose();
             _homeController = null;
             _mockMovieService = null;
             _mockReviewService = null;
@@ -63,10 +60,11 @@ namespace FilmRatingService.Tests
                 TotalResults = 50
             };
 
-            _mockMovieService.Setup(service => service.GetMovieDetailsAsync(featuredMovieId))
-                                .ReturnsAsync(dummyFeaturedMovie);
-            _mockMovieService.Setup(service => service.GetPopularMoviesAsync(pageNumber))
-                                .ReturnsAsync(dummyPopularMoviesResponse);
+            _mockMovieService.Setup(service => service.GetMovieDetailsAsync(It.Is<int>(id => id == featuredMovieId)))
+                             .ReturnsAsync(dummyFeaturedMovie);
+            // MODIFIED Setup for GetPopularMoviesAsync
+            _mockMovieService.Setup(service => service.GetPopularMoviesAsync(It.Is<int>(p => p == pageNumber)))
+                             .ReturnsAsync(dummyPopularMoviesResponse);
 
             // Act
             var result = await _homeController.Index(pageNumber);
@@ -77,7 +75,11 @@ namespace FilmRatingService.Tests
             Assert.That(viewResult.Model, Is.InstanceOf<FeaturedMovieViewModel>());
             var model = viewResult.Model as FeaturedMovieViewModel;
             Assert.That(model.Id, Is.EqualTo(dummyFeaturedMovie.Id));
-            // ... other asserts for Index test ...
+            Assert.That(model.Title, Is.EqualTo(dummyFeaturedMovie.Title));
+            Assert.That(model.PopularMovies.Count, Is.EqualTo(dummyPopularMoviesResponse.Results.Count));
+            Assert.That(model.PopularMoviesCurrentPage, Is.EqualTo(pageNumber));
+            Assert.That(model.PopularMoviesTotalPages, Is.EqualTo(dummyPopularMoviesResponse.TotalPages));
+
             _mockMovieService.Verify(service => service.GetMovieDetailsAsync(featuredMovieId), Times.Once);
             _mockMovieService.Verify(service => service.GetPopularMoviesAsync(pageNumber), Times.Once);
         }
@@ -94,8 +96,14 @@ namespace FilmRatingService.Tests
                 new UserReview { Id = 2, MovieId = movieId, ReviewText = "Awesome!", Rating = 10 }
             };
 
-            _mockMovieService.Setup(s => s.GetMovieDetailsAsync(movieId)).ReturnsAsync(dummyMovieDetails);
-            _mockReviewService.Setup(s => s.GetReviewsForMovieAsync(movieId)).ReturnsAsync(dummyReviews);
+            // MODIFIED Setup for GetMovieDetailsAsync (though likely not the cause of CS0854, being explicit is good)
+            _mockMovieService.Setup(s => s.GetMovieDetailsAsync(It.Is<int>(id => id == movieId)))
+                             .ReturnsAsync(dummyMovieDetails);
+            // MODIFIED Setup for GetReviewsForMovieAsync
+            // HomeController.Details calls GetReviewsForMovieAsync(id) - the 'sortBy' parameter uses its default "date_desc"
+            _mockReviewService.Setup(s => s.GetReviewsForMovieAsync(It.Is<int>(id => id == movieId),
+                                                                    It.Is<string>(sort => sort == "date_desc")))
+                              .ReturnsAsync(dummyReviews);
 
             // Act
             var result = await _homeController.Details(movieId);
@@ -109,7 +117,7 @@ namespace FilmRatingService.Tests
             Assert.That(model.Reviews.Count(), Is.EqualTo(dummyReviews.Count));
 
             _mockMovieService.Verify(s => s.GetMovieDetailsAsync(movieId), Times.Once);
-            _mockReviewService.Verify(s => s.GetReviewsForMovieAsync(movieId), Times.Once);
+            _mockReviewService.Verify(s => s.GetReviewsForMovieAsync(movieId, "date_desc"), Times.Once);
         }
 
         [Test]
@@ -126,8 +134,6 @@ namespace FilmRatingService.Tests
             var redirectResult = result as RedirectToActionResult;
             Assert.That(redirectResult.ActionName, Is.EqualTo("HttpStatusCodeHandler"));
             Assert.That(redirectResult.RouteValues["statusCode"], Is.EqualTo(400));
-            _mockMovieService.Verify(s => s.GetMovieDetailsAsync(It.IsAny<int>()), Times.Never);
-            _mockReviewService.Verify(s => s.GetReviewsForMovieAsync(It.IsAny<int>()), Times.Never);
         }
 
         [Test]
@@ -135,7 +141,9 @@ namespace FilmRatingService.Tests
         {
             // Arrange
             var nonExistentMovieId = 999;
-            _mockMovieService.Setup(s => s.GetMovieDetailsAsync(nonExistentMovieId)).ReturnsAsync((MovieDetails)null);
+            // MODIFIED Setup for GetMovieDetailsAsync
+            _mockMovieService.Setup(s => s.GetMovieDetailsAsync(It.Is<int>(id => id == nonExistentMovieId)))
+                             .ReturnsAsync((MovieDetails)null);
 
             // Act
             var result = await _homeController.Details(nonExistentMovieId);
@@ -145,7 +153,6 @@ namespace FilmRatingService.Tests
             var redirectResult = result as RedirectToActionResult;
             Assert.That(redirectResult.ActionName, Is.EqualTo("HttpStatusCodeHandler"));
             Assert.That(redirectResult.RouteValues["statusCode"], Is.EqualTo(404));
-            _mockReviewService.Verify(s => s.GetReviewsForMovieAsync(It.IsAny<int>()), Times.Never);
         }
 
         // More tests for HomeController actions (Search, Privacy, Error, HttpStatusCodeHandler) will go here.

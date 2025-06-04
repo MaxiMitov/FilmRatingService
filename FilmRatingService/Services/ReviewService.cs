@@ -23,18 +23,13 @@ namespace FilmRatingService.Services
             _logger = logger;
         }
 
+        // ... AddReviewAsync and GetAllReviewsAsync methods remain the same for now ...
         public async Task AddReviewAsync(UserReview review)
         {
-            if (review == null)
-            {
-                throw new ArgumentNullException(nameof(review));
-            }
+            if (review == null) throw new ArgumentNullException(nameof(review));
             try
             {
-                if (review.ReviewDate == default)
-                {
-                    review.ReviewDate = DateTime.UtcNow;
-                }
+                if (review.ReviewDate == default) review.ReviewDate = DateTime.UtcNow;
                 _context.UserReviews.Add(review);
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Successfully added review for MovieId: {MovieId} by UserId: {UserId}", review.MovieId, review.UserId);
@@ -43,28 +38,6 @@ namespace FilmRatingService.Services
             {
                 _logger.LogError(ex, "Error adding review for MovieId: {MovieId} by UserId: {UserId}", review.MovieId, review.UserId);
                 throw;
-            }
-        }
-
-        public async Task<IEnumerable<UserReview>> GetReviewsForMovieAsync(int movieId)
-        {
-            if (movieId <= 0)
-            {
-                _logger.LogWarning("GetReviewsForMovieAsync called with invalid MovieId: {MovieId}", movieId);
-                return new List<UserReview>();
-            }
-            try
-            {
-                return await _context.UserReviews
-                                     .Include(r => r.User)
-                                     .Where(r => r.MovieId == movieId)
-                                     .OrderByDescending(r => r.ReviewDate)
-                                     .ToListAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching reviews for MovieId: {MovieId}", movieId);
-                return new List<UserReview>();
             }
         }
 
@@ -84,7 +57,50 @@ namespace FilmRatingService.Services
             }
         }
 
-        // <<< NEW METHOD IMPLEMENTATION: GetReviewByIdAsync >>>
+
+        // MODIFIED: GetReviewsForMovieAsync to include sorting
+        public async Task<IEnumerable<UserReview>> GetReviewsForMovieAsync(int movieId, string sortBy = "date_desc")
+        {
+            if (movieId <= 0)
+            {
+                _logger.LogWarning("GetReviewsForMovieAsync called with invalid MovieId: {MovieId}", movieId);
+                return new List<UserReview>();
+            }
+
+            try
+            {
+                var query = _context.UserReviews
+                                    .Include(r => r.User) // Eagerly load the related ApplicationUser
+                                    .Where(r => r.MovieId == movieId)
+                                    .AsQueryable(); // Prepare for dynamic sorting
+
+                // Apply sorting
+                switch (sortBy?.ToLowerInvariant()) // Use null-conditional operator and ToLowerInvariant for robust comparison
+                {
+                    case "date_asc":
+                        query = query.OrderBy(r => r.ReviewDate);
+                        break;
+                    case "rating_desc":
+                        query = query.OrderByDescending(r => r.Rating).ThenByDescending(r => r.ReviewDate);
+                        break;
+                    case "rating_asc":
+                        query = query.OrderBy(r => r.Rating).ThenBy(r => r.ReviewDate);
+                        break;
+                    case "date_desc": // Default case
+                    default:
+                        query = query.OrderByDescending(r => r.ReviewDate);
+                        break;
+                }
+
+                return await query.ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching reviews for MovieId: {MovieId} with sortBy: {SortBy}", movieId, sortBy);
+                return new List<UserReview>();
+            }
+        }
+
         public async Task<UserReview> GetReviewByIdAsync(int reviewId)
         {
             if (reviewId <= 0)
@@ -94,8 +110,6 @@ namespace FilmRatingService.Services
             }
             try
             {
-                // Find the review by its primary key.
-                // Include User if you need user details for a confirmation page, for example.
                 return await _context.UserReviews
                                      .Include(r => r.User)
                                      .FirstOrDefaultAsync(r => r.Id == reviewId);
@@ -107,7 +121,6 @@ namespace FilmRatingService.Services
             }
         }
 
-        // <<< NEW METHOD IMPLEMENTATION: DeleteReviewAsync >>>
         public async Task<bool> DeleteReviewAsync(int reviewId)
         {
             if (reviewId <= 0)
@@ -115,16 +128,14 @@ namespace FilmRatingService.Services
                 _logger.LogWarning("DeleteReviewAsync called with invalid reviewId: {ReviewId}", reviewId);
                 return false;
             }
-
             try
             {
                 var reviewToDelete = await _context.UserReviews.FindAsync(reviewId);
                 if (reviewToDelete == null)
                 {
                     _logger.LogWarning("Review with Id: {ReviewId} not found for deletion.", reviewId);
-                    return false; // Review not found
+                    return false;
                 }
-
                 _context.UserReviews.Remove(reviewToDelete);
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Successfully deleted review with Id: {ReviewId}", reviewId);
@@ -133,7 +144,7 @@ namespace FilmRatingService.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting review with Id: {ReviewId}", reviewId);
-                return false; // Indicate failure
+                return false;
             }
         }
     }

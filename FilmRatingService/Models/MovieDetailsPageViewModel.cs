@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+// using FilmRatingService.Models; // UserReview and MovieDetails are in the same namespace
 
 namespace FilmRatingService.Models
 {
@@ -6,12 +7,17 @@ namespace FilmRatingService.Models
     {
         public MovieDetails Movie { get; set; }
         public IEnumerable<UserReview> Reviews { get; set; }
-        // public AddReviewViewModel NewReview { get; set; } // Optionally, can include a blank review form model
+
+        // <<< ADD PROPERTIES FOR SORTING >>>
+        public string CurrentSortOrder { get; set; }
+        // For generating sort links in the view
+        public string DateSortParam { get; set; }
+        public string RatingSortParam { get; set; }
+
 
         public MovieDetailsPageViewModel()
         {
             Reviews = new List<UserReview>();
-            // NewReview = new AddReviewViewModel();
         }
     }
 }
