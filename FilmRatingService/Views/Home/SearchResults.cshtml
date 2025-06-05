@@ -12,9 +12,7 @@
                 <button type="submit">Search</button>
             </form>
         </div>
-        <div class="user-actions">
-            <partial name="_LoginPartial" /> @* Assuming _LoginPartial is set up for dynamic login/logout links *@
-        </div>
+        @* <<< The user-actions div has been removed from here >>> *@
     </div>
 </div>
 
@@ -83,15 +81,8 @@
             cursor: pointer
         }
 
-    .user-actions a {
-        color: #fff;
-        text-decoration: none;
-        margin-left: 15px
-    }
-
-        .user-actions a:hover {
-            text-decoration: underline
-        }
+    /* .user-actions a ... this style block might no longer be needed if the div is removed */
+    /* If _LoginPartial is used elsewhere and has its own styling, or if it inherits other 'a' tag styles, that's fine */
 
     body {
         background-color: #181818;
@@ -235,7 +226,6 @@
             {
                 <div class="movie-card">
                     <a asp-controller="Home" asp-action="Details" asp-route-id="@movie.Id">
-                        @* <<< WRAP IMAGE WITH LINK >>> *@
                         @if (!string.IsNullOrEmpty(movie.PosterPath))
                         {
                             <img src="https://image.tmdb.org/t/p/w300/@movie.PosterPath" alt="@movie.Title" />
@@ -248,11 +238,10 @@
                     <div class="info">
                         <h4>
                             <a asp-controller="Home" asp-action="Details" asp-route-id="@movie.Id" style="color: inherit; text-decoration: none;">
-                                @* <<< WRAP TITLE WITH LINK >>> *@
                                 @movie.Title
                             </a>
                         </h4>
-                        <p>Genre · Year</p> @* Consider making this dynamic *@
+                        <p>Genre · Year</p>
                         <div class="card-rating">⭐ @movie.VoteAverage.ToString("0.0")</div>
                     </div>
                 </div>

@@ -1,19 +1,18 @@
-﻿using FilmRatingService.Areas.Identity.Data; // For ApplicationUser
-
+﻿using FilmRatingService.Areas.Identity.Data; // For ApplicationUser [cite: maximitov/filmratingservice/FilmRatingService-fbc3c10abc252b3854411cc726b0216eb4002661/FilmRatingService/Areas/Identity/Data/ApplicationUser.cs]
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity; // Required for UserManager, IdentityResult
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore; // Required for ToListAsync() on IQueryable users
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-
 using System.Collections.Generic;
-using System.Linq;
+using System.Linq; // Required for .Any()
 using System.Threading.Tasks;
+using System; // Required for StringSplitOptions
 
 namespace FilmRatingService.Areas.Admin.Controllers
 {
-    [Area("Admin")] // Specify the area
-    [Authorize(Roles = "Admin")] // Restrict access to users in the "Admin" role
+    [Area("Admin")]
+    [Authorize(Roles = "Admin")]
     public class UsersController : Controller
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -28,41 +27,68 @@ namespace FilmRatingService.Areas.Admin.Controllers
         // GET: /Admin/Users or /Admin/Users/Index
         public async Task<IActionResult> Index()
         {
-            // Retrieve all users. UserManager.Users returns an IQueryable<ApplicationUser>.
-            // We convert it to a list to pass to the view.
             var users = await _userManager.Users.ToListAsync();
-
-            // For a more detailed view, you might map these to a ViewModel
-            // For now, we'll pass the ApplicationUser objects directly.
-            // Consider what information you want to display: Id, UserName, Email, Name (custom property), roles?
-
-            // Example of creating a simple ViewModel list if needed (optional for now):
-            // var userViewModels = new List<UserViewModel>();
-            // foreach (var user in users)
-            // {
-            //     userViewModels.Add(new UserViewModel
-            //     {
-            //         Id = user.Id,
-            //         UserName = user.UserName,
-            //         Email = user.Email,
-            //         FullName = user.Name // Your custom Name property
-            //         // Roles = await _userManager.GetRolesAsync(user) // Getting roles can be an N+1 query, handle with care
-            //     });
-            // }
-            // return View(userViewModels);
-
             _logger.LogInformation("Admin Users/Index page accessed. Displaying {UserCount} users.", users.Count);
-            return View(users); // Pass the list of ApplicationUser to the view
+            return View(users);
         }
 
-        // Placeholder for a UserViewModel if you decide to use one
-        // public class UserViewModel
-        // {
-        //     public string Id { get; set; }
-        //     public string UserName { get; set; }
-        //     public string Email { get; set; }
-        //     public string FullName { get; set; } // From your ApplicationUser.Name
-        //     // public IList<string> Roles { get; set; }
-        // }
+        // <<< NEW [HttpPost] DeleteUser ACTION METHOD ADDED HERE >>>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteUser(string id) // User ID is a string for Identity
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                TempData["ErrorMessage"] = "User ID was not provided for deletion.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var userToDelete = await _userManager.FindByIdAsync(id);
+
+            if (userToDelete == null)
+            {
+                TempData["ErrorMessage"] = $"User with ID {id} not found.";
+                _logger.LogWarning("Admin attempt to delete non-existent user with ID: {UserId}", id);
+                return RedirectToAction(nameof(Index));
+            }
+
+            // CRITICAL: Prevent admin from deleting their own account
+            var currentUserId = _userManager.GetUserId(User);
+            if (userToDelete.Id == currentUserId)
+            {
+                TempData["ErrorMessage"] = "You cannot delete your own administrator account.";
+                _logger.LogWarning("Admin (UserId: {AdminUserId}) attempted to delete their own account (TargetUserId: {TargetUserId}). Action prevented.", currentUserId, userToDelete.Id);
+                return RedirectToAction(nameof(Index));
+            }
+
+            // Optional: Prevent deletion if user is the *only* admin left (more complex logic)
+            // var isAdmin = await _userManager.IsInRoleAsync(userToDelete, "Admin");
+            // if (isAdmin)
+            // {
+            //     var admins = await _userManager.GetUsersInRoleAsync("Admin");
+            //     if (admins.Count <= 1)
+            //     {
+            //         TempData["ErrorMessage"] = "Cannot delete the last administrator account.";
+            //         return RedirectToAction(nameof(Index));
+            //     }
+            // }
+
+            _logger.LogInformation("Admin (UserId: {AdminUserId}) attempting to delete user with ID: {TargetUserId}, Username: {TargetUsername}", currentUserId, userToDelete.Id, userToDelete.UserName);
+            IdentityResult result = await _userManager.DeleteAsync(userToDelete);
+
+            if (result.Succeeded)
+            {
+                TempData["StatusMessage"] = $"User {userToDelete.UserName} (ID: {id}) has been successfully deleted.";
+                _logger.LogInformation("Admin (UserId: {AdminUserId}) successfully deleted user with ID: {TargetUserId}, Username: {TargetUsername}", currentUserId, userToDelete.Id, userToDelete.UserName);
+            }
+            else
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                TempData["ErrorMessage"] = $"Could not delete user {userToDelete.UserName} (ID: {id}). Errors: {errors}";
+                _logger.LogWarning("Admin (UserId: {AdminUserId}) failed to delete user with ID: {TargetUserId}, Username: {TargetUsername}. Errors: {Errors}", currentUserId, userToDelete.Id, userToDelete.UserName, errors);
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
     }
 }

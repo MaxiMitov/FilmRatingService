@@ -1,15 +1,29 @@
 ﻿@model IEnumerable<FilmRatingService.Areas.Identity.Data.ApplicationUser>
-@* Using your custom ApplicationUser *@
+@using Microsoft.AspNetCore.Identity @* <<< ADD THIS LINE AT THE TOP (or ensure it's in _ViewImports.cshtml) *@
+@inject UserManager<FilmRatingService.Areas.Identity.Data.ApplicationUser> UserManager
 
 @{
     ViewData["Title"] = "Manage Users";
-    // You can set a specific layout for the Admin area in Areas/Admin/Views/_ViewStart.cshtml
-    // For example: Layout = "_AdminLayout";
-    // If not set, it will use the default _Layout.cshtml from /Views/Shared/
+    var currentLoggedInUserId = UserManager.GetUserId(User);
 }
 
 <div class="container mt-4">
     <h1 class="mb-4">Manage Users</h1>
+
+    @if (TempData["StatusMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["StatusMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
 
     @if (Model != null && Model.Any())
     {
@@ -20,7 +34,7 @@
                     <th>Username (Email)</th>
                     <th>Full Name</th>
                     <th>Email Confirmed</th>
-                    <th>Actions</th> @* Placeholder for future actions like Edit, Delete, Manage Roles *@
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -29,7 +43,7 @@
                     <tr>
                         <td>@user.Id</td>
                         <td>@user.UserName</td>
-                        <td>@user.Name</td> @* Your custom Name property *@
+                        <td>@user.Name</td>
                         <td>
                             @if (user.EmailConfirmed)
                             {
@@ -41,11 +55,20 @@
                             }
                         </td>
                         <td>
-                            @* Placeholder for future action links *@
-                            @* <a asp-action="EditUser" asp-route-id="@user.Id" class="btn btn-sm btn-primary">Edit</a> *@
-                            @* <a asp-action="ManageUserRoles" asp-route-userId="@user.Id" class="btn btn-sm btn-info">Roles</a> *@
-                            @* <a asp-action="DeleteUser" asp-route-id="@user.Id" class="btn btn-sm btn-danger">Delete</a> *@
-                            Details | Edit | Delete (Future Actions)
+                            @if (user.Id != currentLoggedInUserId)
+                            {
+                                <form action="/Admin/Users/DeleteUser/@user.Id" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-danger"
+                                            onclick="return confirm('Are you sure you want to delete user @user.UserName? This action will also delete all their reviews and cannot be undone.');">
+                                        Delete
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-muted fst-italic">(Cannot delete self)</span>
+                            }
                         </td>
                     </tr>
                 }
